@@ -136,6 +136,8 @@ typedef struct
 #ifdef ENABLE_MQTT
     int mqtt_connection_instance;
     char *mqtt_controller_topic;
+    bool mqtt_publish_retain_response;  // Whether to set the RETAIN flag in PUBLISH messages carrying a USP Response to this controller
+    bool mqtt_publish_retain_notify;    // Whether to set the RETAIN flag in PUBLISH messages carrying a USP Notification to this controller
 #endif
 
 #ifdef ENABLE_WEBSOCKETS
@@ -267,6 +269,10 @@ int Notify_ControllerMtpCoapEncryption(dm_req_t *req, char *value);
 #ifdef ENABLE_MQTT
 int Notify_ControllerMtpMqttReference(dm_req_t *req, char *value);
 int Notify_ControllerMtpMqttTopic(dm_req_t *req, char *value);
+int Notify_ControllerMtpMqttPublishRetainResponse(dm_req_t *req, char *value);
+int Notify_ControllerMtpMqttPublishRetainNotify(dm_req_t *req, char *value);
+bool CalcMqttPublishRetain(mtp_send_item_t *msi, char *endpoint_id);
+bool IsUspResponseMsgType(Usp__Header__MsgType usp_msg_type);
 #endif
 
 #ifdef ENABLE_WEBSOCKETS
@@ -379,6 +385,8 @@ int DEVICE_CONTROLLER_Init(void)
 #ifdef ENABLE_MQTT
     err |= USP_REGISTER_DBParam_ReadWrite(DEVICE_CONT_ROOT ".{i}.MTP.{i}.MQTT.Reference", "", DEVICE_MTP_ValidateMqttReference, Notify_ControllerMtpMqttReference, DM_STRING);
     err |= USP_REGISTER_DBParam_ReadWrite(DEVICE_CONT_ROOT ".{i}.MTP.{i}.MQTT.Topic", "", NULL, Notify_ControllerMtpMqttTopic, DM_STRING);
+    err |= USP_REGISTER_DBParam_ReadWrite(DEVICE_CONT_ROOT ".{i}.MTP.{i}.MQTT.PublishRetainResponse", "false", NULL, Notify_ControllerMtpMqttPublishRetainResponse, DM_BOOL);
+    err |= USP_REGISTER_DBParam_ReadWrite(DEVICE_CONT_ROOT ".{i}.MTP.{i}.MQTT.PublishRetainNotify", "false", NULL, Notify_ControllerMtpMqttPublishRetainNotify, DM_BOOL);
 #endif
 
 #ifdef ENABLE_WEBSOCKETS
@@ -2324,7 +2332,13 @@ int QueueBinaryMessageOnMtp(mtp_send_item_t *msi, char *endpoint_id, char *usp_m
 #ifdef ENABLE_MQTT
         case kMtpProtocol_MQTT:
         {
-            err = MQTT_QueueBinaryMessage(msi, mtpc->mqtt.instance, mtpc->mqtt.topic, expiry_time);
+            bool retain;
+
+            // NOTE: The retain flag is resolved here (rather than in the MQTT MTP), because this is the last place
+            // at which the destination controller is known. The MQTT MTP is keyed by MQTT client, which may be
+            // shared by more than one controller, each with their own PublishRetainResponse/PublishRetainNotify
+            retain = CalcMqttPublishRetain(msi, endpoint_id);
+            err = MQTT_QueueBinaryMessage(msi, mtpc->mqtt.instance, mtpc->mqtt.topic, expiry_time, retain);
         }
             break;
 #endif
@@ -3647,6 +3661,150 @@ int Notify_ControllerMtpMqttTopic(dm_req_t *req, char *value)
 
     return USP_ERR_OK;
 }
+
+/*********************************************************************//**
+**
+** Notify_ControllerMtpMqttPublishRetainResponse
+**
+** Function called when Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainResponse is modified
+** This function updates the value stored in the controller array
+**
+** \param   req - pointer to structure identifying the path
+** \param   value - new value of this parameter
+**
+** \return  USP_ERR_OK if successful
+**
+**************************************************************************/
+int Notify_ControllerMtpMqttPublishRetainResponse(dm_req_t *req, char *value)
+{
+    controller_t *cont;
+    controller_mtp_t *mtp;
+
+    // Determine MTP to be updated
+    mtp = FindControllerMtpFromReq(req, &cont);
+    USP_ASSERT(mtp != NULL);
+
+    // Set the new value
+    // NOTE: This takes effect on the next USP Response published to this controller. Messages already queued are unaffected
+    mtp->mqtt_publish_retain_response = val_bool;
+
+    return USP_ERR_OK;
+}
+
+/*********************************************************************//**
+**
+** Notify_ControllerMtpMqttPublishRetainNotify
+**
+** Function called when Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainNotify is modified
+** This function updates the value stored in the controller array
+**
+** \param   req - pointer to structure identifying the path
+** \param   value - new value of this parameter
+**
+** \return  USP_ERR_OK if successful
+**
+**************************************************************************/
+int Notify_ControllerMtpMqttPublishRetainNotify(dm_req_t *req, char *value)
+{
+    controller_t *cont;
+    controller_mtp_t *mtp;
+
+    // Determine MTP to be updated
+    mtp = FindControllerMtpFromReq(req, &cont);
+    USP_ASSERT(mtp != NULL);
+
+    // Set the new value
+    // NOTE: This takes effect on the next USP Notification published to this controller. Messages already queued are unaffected
+    mtp->mqtt_publish_retain_notify = val_bool;
+
+    return USP_ERR_OK;
+}
+
+/*********************************************************************//**
+**
+** IsUspResponseMsgType
+**
+** Determines whether the specified USP message type is a response to a USP request
+** NOTE: A USP Error message is included, as it is sent in response to a USP request
+**
+** \param   usp_msg_type - type of USP message
+**
+** \return  true if the USP message is a response to a USP request
+**
+**************************************************************************/
+bool IsUspResponseMsgType(Usp__Header__MsgType usp_msg_type)
+{
+    bool is_response;
+
+    is_response = (usp_msg_type == USP__HEADER__MSG_TYPE__ERROR) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__GET_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__SET_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__ADD_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__DELETE_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__OPERATE_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__NOTIFY_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__GET_INSTANCES_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__GET_SUPPORTED_DM_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__GET_SUPPORTED_PROTO_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__REGISTER_RESP) ||
+                  (usp_msg_type == USP__HEADER__MSG_TYPE__DEREGISTER_RESP);
+
+    return is_response;
+}
+
+/*********************************************************************//**
+**
+** CalcMqttPublishRetain
+**
+** Determines whether the RETAIN flag should be set in the MQTT PUBLISH message carrying the specified USP record
+** This is governed by Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainResponse for USP Responses
+** and by Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainNotify for USP Notifications
+**
+** \param   msi - information about the content being sent
+** \param   endpoint_id - endpoint_id of the controller that the USP record is being sent to
+**
+** \return  true if the RETAIN flag should be set in the PUBLISH message
+**
+**************************************************************************/
+bool CalcMqttPublishRetain(mtp_send_item_t *msi, char *endpoint_id)
+{
+    controller_t *cont;
+    controller_mtp_t *mtp;
+
+    // Exit if the payload does not carry a USP message (eg a USP connect record or a Bulk Data report)
+    if ((msi->content_type == kMtpContentType_BulkDataReport) || (IsUspConnectOrDisconnectRecord(msi->content_type)))
+    {
+        return false;
+    }
+
+    // Exit if unable to determine the MQTT MTP of the controller that the USP record is being sent to
+    // NOTE: This is not an error. The controller may have been deleted since the USP message was formed
+    cont = FindControllerByEndpointId(endpoint_id);
+    if (cont == NULL)
+    {
+        return false;
+    }
+
+    mtp = FindControllerMtpByProtocol(cont, kMtpProtocol_MQTT);
+    if (mtp == NULL)
+    {
+        return false;
+    }
+
+    // Determine whether to retain, based on the class of USP message being sent
+    if (msi->usp_msg_type == USP__HEADER__MSG_TYPE__NOTIFY)
+    {
+        return mtp->mqtt_publish_retain_notify;
+    }
+
+    if (IsUspResponseMsgType(msi->usp_msg_type))
+    {
+        return mtp->mqtt_publish_retain_response;
+    }
+
+    // If the code gets here, then the USP message is a request sent by the agent, which TR-181 does not allow to be retained
+    return false;
+}
 #endif
 
 #ifdef ENABLE_WEBSOCKETS
@@ -4512,6 +4670,22 @@ int ProcessControllerMtpAdded(controller_t *cont, int mtp_instance)
     USP_SNPRINTF(path, sizeof(path), "%s.%d.MTP.%d.MQTT.Topic", device_cont_root, cont->instance, mtp_instance);
     USP_ASSERT(mtp->mqtt_controller_topic == NULL);
     err = DM_ACCESS_GetString(path, &mtp->mqtt_controller_topic);
+    if (err != USP_ERR_OK)
+    {
+        return err;
+    }
+
+    // Exit if unable to determine whether to retain USP Responses sent to this controller
+    USP_SNPRINTF(path, sizeof(path), "%s.%d.MTP.%d.MQTT.PublishRetainResponse", device_cont_root, cont->instance, mtp_instance);
+    err = DM_ACCESS_GetBool(path, &mtp->mqtt_publish_retain_response);
+    if (err != USP_ERR_OK)
+    {
+        return err;
+    }
+
+    // Exit if unable to determine whether to retain USP Notifications sent to this controller
+    USP_SNPRINTF(path, sizeof(path), "%s.%d.MTP.%d.MQTT.PublishRetainNotify", device_cont_root, cont->instance, mtp_instance);
+    err = DM_ACCESS_GetBool(path, &mtp->mqtt_publish_retain_notify);
     if (err != USP_ERR_OK)
     {
         return err;
