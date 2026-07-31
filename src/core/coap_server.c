@@ -1262,6 +1262,10 @@ exit:
             memcpy(&mtp_conn, &pp.mtp_conn, sizeof(mtp_conn));
             mtp_conn.coap.host = addr_buf;
 
+            // Record whether the peer sending this USP Record was authenticated by the DTLS handshake
+            // (This is used to prevent an unauthenticated peer from impersonating a configured USP Controller)
+            mtp_conn.coap.is_peer_authenticated = ((css->ssl != NULL) && (css->cert_chain != NULL));
+
             // The USP response message to this request should be sent back on a new DTLS session, if this USP request was received on a new DTLS session
             mtp_conn.coap.reset_session_hint = css->is_first_usp_msg & cs->enable_encryption;
             css->is_first_usp_msg = false;

@@ -2686,6 +2686,14 @@ Usp__Msg *IsMatchingMsgId(dm_exec_msg_t *msg, char *msg_id, char *responder, Usp
         goto exit;
     }
 
+    // Exit if the endpoint sending this record was not identified by the MTP, and its self asserted from_id claims to be
+    // a controller which is not associated with the connection that the record was received on (controller impersonation)
+    if ((rec->from_id == NULL) ||
+        ((pur->originator == UNKNOWN_ENDPOINT_ID) && (DEVICE_CONTROLLER_IsEndpointBoundToMTP(rec->from_id, &pur->mtp_conn) == false)))
+    {
+        goto exit;
+    }
+
     // Exit if this USP message can be handled by passthru to a USP Service
     DEVICE_CONTROLLER_GetCombinedRoleByEndpointId(rec->from_id, pur->role_instance, pur->mtp_conn.protocol, &combined_role);
     *is_handled = USP_BROKER_AttemptPassthru(usp, rec->from_id, &pur->mtp_conn, &combined_role, rec);

@@ -1083,6 +1083,90 @@ bool DEVICE_CONTROLLER_IsMTPConfigured(char *endpoint_id, mtp_protocol_t protoco
     return true;
 }
 
+/*********************************************************************//**
+**
+** DEVICE_CONTROLLER_IsEndpointBoundToMTP
+**
+** Determines whether the endpoint_id claimed by a received USP Record may be associated with
+** the MTP connection that the USP Record was received on
+** This function is used to prevent controller impersonation on MTPs which do not provide the
+** identity of the originator of the USP Record (STOMP, MQTT and CoAP)
+** NOTE: Endpoints which do not match an enabled controller cannot inherit a controller's role,
+**       so they are always allowed (they will be granted the untrusted role)
+**
+** \param   endpoint_id - Endpoint ID claimed by the received USP Record
+** \param   mtpc - MTP connection on which the USP Record was received
+**
+** \return  true if the endpoint_id may be associated with the connection the USP Record was received on
+**
+**************************************************************************/
+bool DEVICE_CONTROLLER_IsEndpointBoundToMTP(char *endpoint_id, mtp_conn_t *mtpc)
+{
+    controller_t *cont;
+#if !defined(DISABLE_STOMP) || defined(ENABLE_MQTT)
+    controller_mtp_t *mtp;
+    int i;
+#endif
+
+    // Exit if this endpoint does not match an enabled controller, as it cannot inherit a controller's role
+    cont = FindEnabledControllerByEndpointId(endpoint_id);
+    if (cont == NULL)
+    {
+        return true;
+    }
+
+    switch(mtpc->protocol)
+    {
+#ifndef DISABLE_STOMP
+        case kMtpProtocol_STOMP:
+            // Exit if the controller is configured to use the STOMP connection that the USP Record was received on
+            for (i=0; i<MAX_CONTROLLER_MTPS; i++)
+            {
+                mtp = &cont->mtps[i];
+                if ((mtp->instance != INVALID) && (mtp->enable == true) && (mtp->protocol == kMtpProtocol_STOMP) &&
+                    (mtp->stomp_connection_instance != INVALID) && (mtp->stomp_connection_instance == mtpc->stomp.instance))
+                {
+                    return true;
+                }
+            }
+            return false;
+            break;
+#endif
+
+#ifdef ENABLE_MQTT
+        case kMtpProtocol_MQTT:
+            // Exit if the controller is configured to use the MQTT client that the USP Record was received on
+            for (i=0; i<MAX_CONTROLLER_MTPS; i++)
+            {
+                mtp = &cont->mtps[i];
+                if ((mtp->instance != INVALID) && (mtp->enable == true) && (mtp->protocol == kMtpProtocol_MQTT) &&
+                    (mtp->mqtt_connection_instance != INVALID) && (mtp->mqtt_connection_instance == mtpc->mqtt.instance))
+                {
+                    return true;
+                }
+            }
+            return false;
+            break;
+#endif
+
+#ifdef ENABLE_COAP
+        case kMtpProtocol_CoAP:
+            // CoAP does not identify the originator of the USP Record, so only allow a controller's
+            // endpoint_id to be claimed if the peer was authenticated by the DTLS handshake
+            return mtpc->coap.is_peer_authenticated;
+            break;
+#endif
+
+        default:
+            // All other MTPs provide the identity of the originator of the USP Record to the core,
+            // and this is checked against the USP Record's from_id by MSG_HANDLER_HandleBinaryRecord()
+            return true;
+            break;
+    }
+
+    return true;
+}
+
 #ifndef DISABLE_STOMP
 /*********************************************************************//**
 **
