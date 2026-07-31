@@ -236,8 +236,11 @@ int COAP_SERVER_InitStart(void)
     }
 
     // Create the DTLS server SSL context with trust store and client cert loaded
+    // NOTE: SSL_VERIFY_FAIL_IF_NO_PEER_CERT is required so that a DTLS client which presents no
+    // certificate cannot complete the handshake. Without it, a certificate-less session would keep
+    // its default role (ROLE_NON_SSL == ROLE_FULL_ACCESS), granting unauthenticated full access.
     coap_server_ssl_ctx = DEVICE_SECURITY_CreateSSLContext(DTLS_server_method(),
-                                                           SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE /*| SSL_VERIFY_FAIL_IF_NO_PEER_CERT*/,
+                                                           SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                                                            DEVICE_SECURITY_TrustCertVerifyCallback);
     if (coap_server_ssl_ctx == NULL)
     {
@@ -1043,24 +1046,33 @@ int PerformSessionDtlsConnect(coap_server_session_t *css)
     // Sends the 'ServerHello' containing server Certificate, client certificate request, and ending in 'ServerHelloDone'
     // Then waits for SSL Handshake message and finally sends a NewSessionTicket
     // NOTE: This agent must have its own cert (same as STOMP client cert), otherwise SSL_accept complains that there's 'no shared cipher'
+    // NOTE: SSL_accept() returns 1 on success. Any other value (0 or negative) is a handshake
+    // failure and must reset the session - this includes the case where SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+    // rejects a client that presented no certificate.
     result = SSL_accept(css->ssl);
-    if (result < 0)
+    if (result != 1)
     {
         err = SSL_get_error(css->ssl, result);
         USP_LOG_ErrorSSL(__FUNCTION__, "SSL_accept() failed. Resetting CoAP session", result, err);
         return USP_ERR_INTERNAL_ERROR;
     }
 
-    // If we have a certificate chain, then determine which role to allow for controllers on this CoAP connection
-    if (css->cert_chain != NULL)
+    // Exit if the client did not present a verified certificate chain. With SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+    // enabled this should not happen (SSL_accept() would already have failed), but guard against it explicitly
+    // so that a session can never fall through to the default full-access role without an authenticated cert.
+    if (css->cert_chain == NULL)
     {
-        // Exit if unable to determine the role associated with the trusted root cert that signed the peer cert
-        err = DEVICE_SECURITY_GetControllerTrust(css->cert_chain, &css->role_instance);
-        if (err != USP_ERR_OK)
-        {
-            USP_LOG_Error("%s: DEVICE_SECURITY_GetControllerTrust() failed. Resetting CoAP session", __FUNCTION__);
-            return USP_ERR_INTERNAL_ERROR;
-        }
+        USP_LOG_Error("%s: DTLS client presented no certificate. Resetting CoAP session", __FUNCTION__);
+        return USP_ERR_INTERNAL_ERROR;
+    }
+
+    // Determine which role to allow for controllers on this CoAP connection from the peer certificate chain
+    // Exit if unable to determine the role associated with the trusted root cert that signed the peer cert
+    err = DEVICE_SECURITY_GetControllerTrust(css->cert_chain, &css->role_instance);
+    if (err != USP_ERR_OK)
+    {
+        USP_LOG_Error("%s: DEVICE_SECURITY_GetControllerTrust() failed. Resetting CoAP session", __FUNCTION__);
+        return USP_ERR_INTERNAL_ERROR;
     }
 
     return USP_ERR_OK;
