@@ -73,6 +73,7 @@
 #define ASSIGNED_CLIENT_IDENTIFIER 18
 #define REQUEST_RESPONSE_INFORMATION 25
 #define RESPONSE_INFORMATION 26
+#define RETAIN_AVAILABLE 37
 #define USER_PROPERTY 38
 
 //------------------------------------------------------------------------------
@@ -147,6 +148,8 @@ typedef struct
     bool is_disconnected;       // Set if the disconnect callback has been called, to cause ensuing actions to be taken
     bool is_subscribed;         // Set if the agent is subscribed to at least one topic. This flag is used to prevent the agent
                                 // from sending notification messages until it knows that it can receive a notification response from the Controller
+    bool retain_available;      // Set unless the broker sent 'Retain Available=0' in an MQTTv5 CONNACK, in which case the
+                                // agent must not set the RETAIN flag in the PUBLISH frames that it sends to the broker
 
     str_vector_t  frame_trace;    // string vector in which to build up debug trace of the options for the next MQTT frame to be transmitted
 } mqtt_client_t;
@@ -178,6 +181,8 @@ typedef struct
     mtp_send_item_t item;   // Information about the content to send
     char *topic;            // Name of the MQTT Topic to send to
     mqtt_qos_t qos;         // QOS to request when building PUBLISH message (obtained from mqtt_conn_params_t.publish_qos)
+    bool retain;            // Whether to set the RETAIN flag when building the PUBLISH message (obtained from
+                            // Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainResponse/PublishRetainNotify)
     int mid;                // MQTT message ID. This is filled in by libmosquitto, when we tell libmosquitto to send this message
     time_t expiry_time;     // Time at which this USP record should be removed from the queue
 } mqtt_send_item_t;
@@ -256,7 +261,8 @@ void RemoveExpiredMqttMessages(mqtt_client_t *client);
 void ParseSubscribeTopicsFromConnack(mqtt_client_t *client, mosquitto_property *prop);
 void AddConnackSubscription(mqtt_client_t *client, char *topic);
 void QueueUspMqttConnectRecords(mqtt_client_t *client);
-void QueueUspRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, char *controller_topic, time_t expiry_time, bool link_to_head);
+void QueueUspRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, char *controller_topic, time_t expiry_time, bool link_to_head, bool retain);
+bool CalcPublishRetain(mqtt_client_t *client, mqtt_send_item_t *msg);
 void MqttSubscriptionReplace(mqtt_subscription_t *dest, mqtt_subs_config_t *src);
 void MqttSubscriptionDestroy(mqtt_subscription_t *sub);
 void SaveMqttPublishErrMsg(const char *fmt, ...);
@@ -540,11 +546,12 @@ exit:
 ** \param   instance - instance number for the client in Device.MQTT.Client.{i}
 ** \param   controller_topic - controller's topic to publish the message on
 ** \param   expiry_time - time at which the USP record should be removed from the MTP send queue
+** \param   retain - whether the RETAIN flag should be set in the PUBLISH frame carrying this USP record
 **
 ** \return  USP_ERR_OK on success, USP_ERR_XXX otherwise
 **
 **************************************************************************/
-int MQTT_QueueBinaryMessage(mtp_send_item_t *msi, int instance, char *controller_topic, time_t expiry_time)
+int MQTT_QueueBinaryMessage(mtp_send_item_t *msi, int instance, char *controller_topic, time_t expiry_time, bool retain)
 {
     int err = USP_ERR_GENERAL_FAILURE;
 
@@ -591,7 +598,7 @@ int MQTT_QueueBinaryMessage(mtp_send_item_t *msi, int instance, char *controller
     RemoveExpiredMqttMessages(client);
 
     // NOTE: Ownership of the payload buffer passes to the MQTT message queue
-    QueueUspRecord_MQTT(client, msi, controller_topic, expiry_time, false);
+    QueueUspRecord_MQTT(client, msi, controller_topic, expiry_time, false, retain);
 
     err = USP_ERR_OK;
 
@@ -1628,7 +1635,7 @@ void MQTT_ModifyConnectedControllers(int instance, kv_vector_t *controller_topic
             USPREC_Disconnect_Create(kMtpContentType_DisconnectRecord, kv->key, USP_ERR_OK, "Configuration Change", &msi);
             msi.content_type = kMtpContentType_UspMessage; // Overriding because we don't want any special handling for this record
             USP_ASSERT((kv->value != NULL) && (kv->value[0] != '\0'));
-            QueueUspRecord_MQTT(client, &msi, kv->value, END_OF_TIME, false);
+            QueueUspRecord_MQTT(client, &msi, kv->value, END_OF_TIME, false, false /*retain*/);
         }
     }
 
@@ -1645,7 +1652,7 @@ void MQTT_ModifyConnectedControllers(int instance, kv_vector_t *controller_topic
                 USPREC_MqttConnect_Create(kv->key, client->conn_params.version, client->response_subscription.topic, &msi);
                 msi.content_type = kMtpContentType_UspMessage; // Overriding because we don't want any special handling for this record
                 USP_ASSERT((kv->value != NULL) && (kv->value[0] != '\0'));
-                QueueUspRecord_MQTT(client, &msi, kv->value, END_OF_TIME, false);
+                QueueUspRecord_MQTT(client, &msi, kv->value, END_OF_TIME, false, false /*retain*/);
             }
         }
     }
@@ -1892,6 +1899,7 @@ void InitClient(mqtt_client_t *client, int index)
     client->disconnect_mid = INVALID_MOSQUITTO_MID;
     client->is_reconnect = false;
     client->is_subscribed = false;
+    client->retain_available = true;
     KV_VECTOR_Init(&client->controller_topics);
     STR_VECTOR_Init(&client->frame_trace);
 
@@ -2049,6 +2057,7 @@ void CleanMqttClient(mqtt_client_t *client, bool is_reconnect)
     USP_SAFE_FREE(client->agent_topic_from_connack);
     client->retry_time = 0;
     client->is_subscribed = false;
+    client->retain_available = true;
 
     // Free all subscriptions whose lifetime is set by the connection (rather than being set by configuration in Device.MQTT.Client.{i}.Subscription table)
     MqttSubscriptionDestroy(&client->response_subscription);
@@ -2148,6 +2157,7 @@ int EnableMqttClient(mqtt_client_t* client)
     USP_SAFE_FREE(client->agent_topic_from_connack);
     client->retry_time = 0;
     client->is_subscribed = false;
+    client->retain_available = true;
 
     // Initialise the agent's response topic
     // NOTE: The agent's response topic stored in response_subscription may be NULL, if not configured in Device.LocalAgent.MTP.{i}.MQTT.ResponseTopicConfigured
@@ -2376,7 +2386,7 @@ void QueueUspConnectRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, cha
     }
 
     // NOTE: Ownership of the payload buffer passes to the MQTT message queue
-    QueueUspRecord_MQTT(client, msi, controller_topic, expiry_time, true);
+    QueueUspRecord_MQTT(client, msi, controller_topic, expiry_time, true, false /*retain*/);
 }
 
 /*********************************************************************//**
@@ -2391,11 +2401,12 @@ void QueueUspConnectRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, cha
 ** \param   controller_topic - topic to send the record to
 ** \param   expiry_time - time at which the USP record should be removed from the MTP send queue
 ** \param   link_to_head - if set to true, the USP record is added to the front of the send queue, otherwise it is added to the end of the send queue
+** \param   retain - whether the RETAIN flag should be set in the PUBLISH frame carrying this USP record
 **
 ** \return  None
 **
 **************************************************************************/
-void QueueUspRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, char *controller_topic, time_t expiry_time, bool link_to_head)
+void QueueUspRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, char *controller_topic, time_t expiry_time, bool link_to_head, bool retain)
 {
     mqtt_send_item_t *send_item;
 
@@ -2405,6 +2416,7 @@ void QueueUspRecord_MQTT(mqtt_client_t *client, mtp_send_item_t *msi, char *cont
     send_item->topic = USP_STRDUP(controller_topic);
     send_item->mid = INVALID;
     send_item->qos = client->conn_params.publish_qos;
+    send_item->retain = retain;
     send_item->expiry_time = expiry_time;
 
     // Add the send item to the send queue
@@ -2913,6 +2925,7 @@ void ConnectV5Callback(struct mosquitto *mosq, void *userdata, int result, int f
     char *client_id_ptr = NULL;
     char *response_info_ptr = NULL;
     mqtt_client_t *client = NULL;
+    uint8_t retain_available;
     int instance = *(int*)userdata;
 
     OS_UTILS_LockMutex(&mqtt_access_mutex);
@@ -2981,6 +2994,15 @@ void ConnectV5Callback(struct mosquitto *mosq, void *userdata, int result, int f
             FRAME_TRACE_ADD(client, "response_information_topic: %s", response_info_ptr);
             SaveAgentTopicFromConnack(client, response_info_ptr);
             free(response_info_ptr);
+        }
+
+        // Determine whether the broker supports retained messages
+        // NOTE: If the property is absent from the CONNACK, then retained messages are supported
+        client->retain_available = true;
+        if (mosquitto_property_read_byte(props, RETAIN_AVAILABLE, &retain_available, false) != NULL)
+        {
+            client->retain_available = (retain_available != 0);
+            FRAME_TRACE_ADD(client, "retain_available: %d", retain_available);
         }
 
         // Determine if there were any additional topics to subscribe to, indicated in the CONNACK
@@ -3901,7 +3923,7 @@ int Publish(mqtt_client_t *client, mqtt_send_item_t *msg)
             USP_STRNCPY(topic, msg->topic, sizeof(topic));
         }
 
-        mosq_err = mosquitto_publish(client->mosq, &msg->mid, topic, msg->item.pbuf_len, msg->item.pbuf, msg->qos, false /*retain*/);
+        mosq_err = mosquitto_publish(client->mosq, &msg->mid, topic, msg->item.pbuf_len, msg->item.pbuf, msg->qos, CalcPublishRetain(client, msg));
         if (mosq_err != MOSQ_ERR_SUCCESS)
         {
             SaveMqttPublishErrMsg("%s: Failed to publish with error %d (%s)", __FUNCTION__, mosq_err, mosquitto_strerror(mosq_err));
@@ -3917,6 +3939,29 @@ int Publish(mqtt_client_t *client, mqtt_send_item_t *msg)
     MSG_HANDLER_LogMessageToSend(&msg->item, kMtpProtocol_MQTT, client->conn_params.host, buf);
 
     return err;
+}
+
+/*********************************************************************//**
+**
+** CalcPublishRetain
+**
+** Determines whether the RETAIN flag should be set in the MQTT PUBLISH frame carrying the specified USP record
+** NOTE: The RETAIN flag is always cleared if the broker indicated 'Retain Available=0' in an MQTTv5 CONNACK
+**
+** \param   client - pointer to MQTT client which is sending the USP record
+** \param   msg - pointer to message to send
+**
+** \return  true if the RETAIN flag should be set, false otherwise
+**
+**************************************************************************/
+bool CalcPublishRetain(mqtt_client_t *client, mqtt_send_item_t *msg)
+{
+    bool retain;
+
+    retain = (msg->retain) && (client->retain_available);
+    FRAME_TRACE_ADD(client, "retain: %d", retain);
+
+    return retain;
 }
 
 /*********************************************************************//**
@@ -3984,7 +4029,7 @@ int PublishV5(mqtt_client_t *client, mqtt_send_item_t *msg)
     }
 
     // Exit if unable to publish the packet
-    mosq_err = mosquitto_publish_v5(client->mosq, &msg->mid, msg->topic, msg->item.pbuf_len, msg->item.pbuf, msg->qos, false /* retain */, proplist);
+    mosq_err = mosquitto_publish_v5(client->mosq, &msg->mid, msg->topic, msg->item.pbuf_len, msg->item.pbuf, msg->qos, CalcPublishRetain(client, msg), proplist);
     if (mosq_err != MOSQ_ERR_SUCCESS)
     {
         SaveMqttPublishErrMsg("%s: Failed to publish to v5 with error %d (%s)", __FUNCTION__, mosq_err, mosquitto_strerror(mosq_err));

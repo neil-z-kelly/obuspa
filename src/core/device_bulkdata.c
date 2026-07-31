@@ -3223,7 +3223,8 @@ int bulkdata_schedule_sending_mqtt_report(profile_ctrl_params_t *ctrl, bulkdata_
     mtp_send_item.pbuf_len = report_len;
 
     // Exit if unable to queue the message. This could occur if the MQTT Client is not enabled
-    err = MQTT_QueueBinaryMessage(&mtp_send_item, mqtt_client_instance, ctrl->mqtt_publish_topic, END_OF_TIME);
+    // NOTE: Bulk Data reports are not USP messages, so the RETAIN flag is never set for them
+    err = MQTT_QueueBinaryMessage(&mtp_send_item, mqtt_client_instance, ctrl->mqtt_publish_topic, END_OF_TIME, false /*retain*/);
     if (err != USP_ERR_OK)
     {
         USP_FREE(report);

@@ -154,7 +154,7 @@ void MQTT_Stop(void);
 void MQTT_ModifyConnectedControllers(int instance, kv_vector_t *controller_topics);
 int MQTT_EnableClient(mqtt_conn_params_t *mqtt_params, mqtt_subs_config_t subscriptions[MAX_MQTT_SUBSCRIPTIONS], kv_vector_t *controller_topics);
 int MQTT_DisableClient(int instance);
-int MQTT_QueueBinaryMessage(mtp_send_item_t *msi, int instance, char *topic, time_t expiry_time);
+int MQTT_QueueBinaryMessage(mtp_send_item_t *msi, int instance, char *topic, time_t expiry_time, bool retain);
 void MQTT_UpdateConnectionParams(mqtt_conn_params_t *mqtt_params, bool schedule_reconnect);
 void MQTT_ActivateScheduledActions(void);
 mtp_status_t MQTT_GetMtpStatus(int instance);

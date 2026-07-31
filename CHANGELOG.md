@@ -1,5 +1,14 @@
 # OB-USP-AGENT Changelog
 
+## 2026-07-31 v11.0.8
+### Added
+- Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainResponse and
+  Device.LocalAgent.Controller.{i}.MTP.{i}.MQTT.PublishRetainNotify parameters.
+  These control whether the RETAIN flag is set in the MQTT PUBLISH frames carrying USP Response and
+  USP Notify messages respectively. Both default to false, which is the behaviour of previous releases.
+  The RETAIN flag is never set if the broker indicated 'Retain Available=0' in an MQTTv5 CONNACK.
+
+
 ## 2026-07-24 v11.0.7
 ### Added
 - CODING_GUIDELINES.md
