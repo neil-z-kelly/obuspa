@@ -2054,6 +2054,7 @@ void CleanMqttClient(mqtt_client_t *client, bool is_reconnect)
     client->schedule_close = kScheduledAction_Off;
     client->disconnect_mid = INVALID_MOSQUITTO_MID;
     USP_SAFE_FREE(client->agent_topic_from_connack);
+    client->retain_available = true;
     client->retry_time = 0;
     client->is_subscribed = false;
 
@@ -2923,6 +2924,7 @@ void ConnectV5Callback(struct mosquitto *mosq, void *userdata, int result, int f
     char *client_id_ptr = NULL;
     char *response_info_ptr = NULL;
     uint8_t retain_available;
+    const mosquitto_property *retain_prop;
     mqtt_client_t *client = NULL;
     int instance = *(int*)userdata;
 
@@ -2997,7 +2999,8 @@ void ConnectV5Callback(struct mosquitto *mosq, void *userdata, int result, int f
         // Determine whether the broker allows retained messages
         // NOTE: If the property is absent from the CONNACK, then retained messages are supported
         client->retain_available = true;
-        if (mosquitto_property_read_byte(props, RETAIN_AVAILABLE, &retain_available, false /* skip first */) != NULL)
+        retain_prop = mosquitto_property_read_byte(props, RETAIN_AVAILABLE, &retain_available, false /* skip first */);
+        if (retain_prop != NULL)
         {
             FRAME_TRACE_ADD(client, "retain_available: %d", retain_available);
             client->retain_available = (retain_available != 0);

@@ -3770,23 +3770,29 @@ bool CalcMqttPublishRetain(mtp_send_item_t *msi, char *endpoint_id)
 {
     controller_t *cont;
     controller_mtp_t *mtp;
+    bool is_whole_usp_msg;
 
-    // Exit if the payload does not carry a USP message (eg a USP connect record or a Bulk Data report)
-    if ((msi->content_type == kMtpContentType_BulkDataReport) || (IsUspConnectOrDisconnectRecord(msi->content_type)))
+    // Exit if the payload does not carry a whole USP message (eg a USP connect record, a Bulk Data report,
+    // or a segment of an E2E session's USP message). Only a whole USP message is of any use to a late subscriber
+    is_whole_usp_msg = (msi->content_type == kMtpContentType_UspMessage);
+#ifdef E2ESESSION_EXPERIMENTAL_USP_V_1_2
+    is_whole_usp_msg = is_whole_usp_msg || (msi->content_type == kMtpContentType_E2E_FullMessage);
+#endif
+    if (is_whole_usp_msg == false)
     {
         return false;
     }
 
-    // Exit if unable to determine the MQTT MTP of the controller that the USP record is being sent to
-    // NOTE: This is not an error. The controller may have been deleted since the USP message was formed
-    cont = FindControllerByEndpointId(endpoint_id);
+    // Exit if unable to determine the enabled MQTT MTP of the controller that the USP record is being sent to
+    // NOTE: This is not an error. The controller may have been deleted or disabled since the USP message was formed
+    cont = FindEnabledControllerByEndpointId(endpoint_id);
     if (cont == NULL)
     {
         return false;
     }
 
-    mtp = FindControllerMtpByProtocol(cont, kMtpProtocol_MQTT);
-    if (mtp == NULL)
+    mtp = FindFirstEnabledMtp(cont, kMtpProtocol_MQTT);
+    if ((mtp == NULL) || (mtp->protocol != kMtpProtocol_MQTT))
     {
         return false;
     }
