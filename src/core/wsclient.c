@@ -44,6 +44,7 @@
 #include <libwebsockets.h>
 #include <unistd.h>
 #include <limits.h>
+#include <inttypes.h>  // For PRIu64
 
 #include "common_defs.h"
 #include "dllist.h"
@@ -1941,7 +1942,7 @@ int HandleWscEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
     mtp_conn_t mtp_conn;
     char buf[MAX_ISO8601_LEN];
     wsclient_t *wc;
-    int new_len;
+    uint64_t new_len;
 
     wc = lws_get_opaque_user_data(handle);
     USP_ASSERT(wc != NULL);
@@ -1958,20 +1959,22 @@ int HandleWscEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
 
     // Calculate the total size needed for all websocket fragments received so far (including this one)
     // NOTE: We may only have received a chunk of the current websocket fragment - lws_remaining_packet_payload() returns the number of bytes remaining in the current websocket fragment
-    new_len = wc->rx_buf_len + chunk_len + lws_remaining_packet_payload(handle);
+    // NOTE: The arithmetic is performed in 64 bit unsigned, to prevent an attacker declaring a huge websocket
+    //       frame length which would overflow the size limit check performed below
+    new_len = (uint64_t)wc->rx_buf_len + (uint64_t)chunk_len + (uint64_t)lws_remaining_packet_payload(handle);
 
     // Exit, sending a close frame, if the size of the USP Record is larger than we allow
     if (new_len > MAX_USP_MSG_LEN)
     {
         return CloseWsclientConnection(wc, kWebSockCloseReason_BadUspRecord, LWS_CLOSE_STATUS_MESSAGE_TOO_LARGE,
-                                      "%s: %s sent a message >%d bytes long (%d bytes). Closing connection.", __FUNCTION__, wc->cont_endpoint_id, MAX_USP_MSG_LEN, new_len);
+                                      "%s: %s sent a message >%d bytes long (%" PRIu64 " bytes). Closing connection.", __FUNCTION__, wc->cont_endpoint_id, MAX_USP_MSG_LEN, new_len);
     }
 
     // Increase the size of the chunk buffer to receive this websocket fragment
-    if (new_len > wc->rx_buf_max_len)
+    if (new_len > (uint64_t)wc->rx_buf_max_len)
     {
-        wc->rx_buf = USP_REALLOC(wc->rx_buf, new_len);
-        wc->rx_buf_max_len = new_len;
+        wc->rx_buf = USP_REALLOC(wc->rx_buf, (int)new_len);
+        wc->rx_buf_max_len = (int)new_len;
     }
 
     // Add the chunk to the buffer, building up the received USP Record
