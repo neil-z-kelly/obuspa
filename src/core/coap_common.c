@@ -1207,6 +1207,9 @@ bool ParseCoapUriQuery(char *uri_query, mtp_conn_t *mtpc)
     char *hostname_end;
     char *endptr;
 
+    // Default to the peer not being authenticated. This is set by the CoAP server once the DTLS state of the session is known
+    mtpc->coap.is_peer_authenticated = false;
+
     // Determine if the reply is to an encrypted port or not (and set the default port based on encryption status)
     #define URI_QUERY_COAP  "reply-to=coap://"
     #define URI_QUERY_COAPS "reply-to=coaps://"

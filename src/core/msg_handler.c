@@ -187,17 +187,6 @@ int MSG_HANDLER_HandleBinaryRecord(unsigned char *pbuf, int pbuf_len, char *orig
         goto exit;
     }
 
-    // Exit if the originator of the message was not known from the MTP, and the self asserted from_id claims to be a
-    // controller which is not associated with the connection that the USP Record was received on.
-    // Otherwise the sender could impersonate a configured controller, inheriting that controller's permissions
-    if ((originator == UNKNOWN_ENDPOINT_ID) && (rec->from_id != NULL) &&
-        (DEVICE_CONTROLLER_IsEndpointBoundToMTP(rec->from_id, mtpc) == false))
-    {
-        USP_ERR_SetMessage("%s: Ignoring USP record from unauthenticated endpoint claiming to be controller eid='%s' on %s", __FUNCTION__, rec->from_id, DEVICE_MTP_EnumToString(mtpc->protocol));
-        err = USP_ERR_REQUEST_DENIED;
-        goto exit;
-    }
-
 #ifdef ENABLE_WEBSOCKETS
     // Exit if USP record received from the agent's websocket server is from a controller that is
     // already connected via the agent's websocket client (only one connection to a controller is allowed)
@@ -237,6 +226,17 @@ int MSG_HANDLER_HandleBinaryRecord(unsigned char *pbuf, int pbuf_len, char *orig
             break;
     }
 #endif
+
+    // Exit if the originator of the message was not known from the MTP, and the self asserted from_id claims to be a
+    // controller which is not associated with the connection that the USP Record was received on.
+    // Otherwise the sender could impersonate a configured controller, inheriting that controller's permissions
+    if ((originator == UNKNOWN_ENDPOINT_ID) && (rec->from_id != NULL) &&
+        (DEVICE_CONTROLLER_IsEndpointBoundToMTP(rec->from_id, mtpc) == false))
+    {
+        USP_ERR_SetMessage("%s: Ignoring USP record from unauthenticated endpoint claiming to be controller eid='%s' on %s", __FUNCTION__, rec->from_id, DEVICE_MTP_EnumToString(mtpc->protocol));
+        err = USP_ERR_REQUEST_DENIED;
+        goto exit;
+    }
 
     // Exit if USP record failed validation
     err = ValidateUspRecord(rec, mtpc);

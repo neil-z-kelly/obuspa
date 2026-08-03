@@ -1600,6 +1600,7 @@ void DM_EXEC_CopyMTPConnection(mtp_conn_t *dst, mtp_conn_t *src)
             dst->coap.port = src->coap.port;
             dst->coap.resource = USP_STRDUP(src->coap.resource);
             dst->coap.encryption = src->coap.encryption;
+            dst->coap.is_peer_authenticated = src->coap.is_peer_authenticated;
             dst->coap.reset_session_hint = src->coap.reset_session_hint;
             break;
 #endif

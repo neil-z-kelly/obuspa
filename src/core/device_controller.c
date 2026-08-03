@@ -1089,8 +1089,11 @@ bool DEVICE_CONTROLLER_IsMTPConfigured(char *endpoint_id, mtp_protocol_t protoco
 **
 ** Determines whether the endpoint_id claimed by a received USP Record may be associated with
 ** the MTP connection that the USP Record was received on
-** This function is used to prevent controller impersonation on MTPs which do not provide the
+** This function is used to limit controller impersonation on MTPs which do not provide the
 ** identity of the originator of the USP Record (STOMP, MQTT and CoAP)
+** NOTE: STOMP and MQTT provide no per-message originator identity, so the binding is only to the
+**       connection that the controller is configured on - the broker remains the trust anchor for
+**       ensuring that only that controller can publish on the agent's destination/topic
 ** NOTE: Endpoints which do not match an enabled controller cannot inherit a controller's role,
 **       so they are always allowed (they will be granted the untrusted role)
 **
