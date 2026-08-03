@@ -43,6 +43,7 @@
 #ifdef ENABLE_WEBSOCKETS
 #include <libwebsockets.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include "common_defs.h"
 #include "dllist.h"
@@ -1459,13 +1460,17 @@ int HandleWssEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
 
     // Calculate the total size needed for all websocket fragments received so far (including this one)
     // NOTE: We may only have received a chunk of the current websocket fragment - lws_remaining_packet_payload() returns the number of bytes remaining in the current websocket fragment
-    new_len = wc->rx_buf_len + chunk_len + lws_remaining_packet_payload(handle);
+    // NOTE: Perform the arithmetic in 64-bit, since lws_remaining_packet_payload() reflects a peer-controlled 64-bit frame length. Doing the sum in the signed 32-bit new_len would allow the value to wrap negative/small, bypassing the size guard below and under-allocating rx_buf
+    uint64_t total_len = (uint64_t)wc->rx_buf_len + (uint64_t)chunk_len + (uint64_t)lws_remaining_packet_payload(handle);
 
     // Exit, sending a close frame, if the size of the USP Record is larger than we allow
-    if (new_len > MAX_USP_MSG_LEN)
+    if (total_len > MAX_USP_MSG_LEN)
     {
-        return CloseWsservConnection(handle, LWS_CLOSE_STATUS_MESSAGE_TOO_LARGE, "%s: %s sent a message >%d bytes long (%d bytes). Closing connection.", __FUNCTION__, wc->peer, MAX_USP_MSG_LEN, new_len);
+        return CloseWsservConnection(handle, LWS_CLOSE_STATUS_MESSAGE_TOO_LARGE, "%s: %s sent a message >%d bytes long (%llu bytes). Closing connection.", __FUNCTION__, wc->peer, MAX_USP_MSG_LEN, (unsigned long long)total_len);
     }
+
+    // At this point total_len <= MAX_USP_MSG_LEN, so it safely fits in the signed int buffer length fields
+    new_len = (int)total_len;
 
     // Increase the size of the chunk buffer to receive this websocket fragment
     if (new_len > wc->rx_buf_max_len)

@@ -23,3 +23,7 @@ ylwrap
 *.m4
 .dirstamp
 *.swp
+
+# compiled regression test binaries
+tests/test_ws_reassembly_len
+tests/test_ws_reassembly_len_vuln
