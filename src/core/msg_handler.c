@@ -179,6 +179,14 @@ int MSG_HANDLER_HandleBinaryRecord(unsigned char *pbuf, int pbuf_len, char *orig
         return USP_ERR_RECORD_NOT_PARSED;
     }
 
+    // Exit if the USP Record does not identify the endpoint which sent it
+    if (rec->from_id == NULL)
+    {
+        USP_ERR_SetMessage("%s: Ignoring USP record as from_id is missing", __FUNCTION__);
+        err = USP_ERR_RECORD_FIELD_INVALID;
+        goto exit;
+    }
+
     // Exit if the originator of the message was known from the MTP, but is inconsistent with the USP Record from_id
     if ((originator != UNKNOWN_ENDPOINT_ID) && (strcmp(originator, rec->from_id) != 0))
     {
