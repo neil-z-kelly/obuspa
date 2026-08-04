@@ -1967,35 +1967,51 @@ int GetChildParams(char *path, int path_len, dm_node_t *node, dm_instances_t *in
                 {
                     // Deal with GetBulkData operations
                     permission_bitmask = DM_PRIV_GetPermissions(child, inst, state->combined_role, 0);
-                    if (state->op == kResolveOp_GetBulkData)
+                    switch(state->op)
                     {
-                        if (permission_bitmask & PERMIT_GET)
-                        {
-                            add_to_vector = true;
-                        }
-                        else
-                        {
+                        case kResolveOp_GetBulkData:
                             // Exit if permissions do not allow a bulk data get of this parameter
-                            USP_SNPRINTF(&path[path_len], MAX_DM_PATH-path_len, ".%s", child->name);
-                            USP_ERR_SetMessage("%s: Controller's role permissions do not allow a bulk data read of %s", __FUNCTION__, path);
-                            return USP_ERR_PERMISSION_DENIED;
-                        }
-                    }
-                    else if (state->op == kResolveOp_SubsValChange)
-                    {
-                        // Only include parameters that are permitted and are not supposed to be ignored by value change
-                        if ((permission_bitmask & PERMIT_SUBS_VAL_CHANGE) &&
-                            ((child->registered.param_info.type_flags & DM_VALUE_CHANGE_WILL_IGNORE) == 0))
-                        {
+                            if ((permission_bitmask & PERMIT_GET) == 0)
+                            {
+                                USP_SNPRINTF(&path[path_len], MAX_DM_PATH-path_len, ".%s", child->name);
+                                USP_ERR_SetMessage("%s: Controller's role permissions do not allow a bulk data read of %s", __FUNCTION__, path);
+                                return USP_ERR_PERMISSION_DENIED;
+                            }
+
                             add_to_vector = true;
-                        }
-                    }
-                    else if (state->op == kResolveOp_Get)
-                    {
-                        if (permission_bitmask & PERMIT_GET)
-                        {
-                            add_to_vector = true;
-                        }
+                            break;
+
+                        case kResolveOp_SubsValChange:
+                            // Only include parameters that are permitted and are not supposed to be ignored by value change
+                            if ((permission_bitmask & PERMIT_SUBS_VAL_CHANGE) &&
+                                ((child->registered.param_info.type_flags & DM_VALUE_CHANGE_WILL_IGNORE) == 0))
+                            {
+                                add_to_vector = true;
+                            }
+                            break;
+
+                        case kResolveOp_Get:
+                            if (permission_bitmask & PERMIT_GET)
+                            {
+                                add_to_vector = true;
+                            }
+                            break;
+
+                        default:
+                        case kResolveOp_Set:
+                        case kResolveOp_Add:
+                        case kResolveOp_Del:
+                        case kResolveOp_Oper:
+                        case kResolveOp_Event:
+                        case kResolveOp_Instances:
+                        case kResolveOp_SubsAdd:
+                        case kResolveOp_SubsDel:
+                        case kResolveOp_SubsOper:
+                        case kResolveOp_SubsEvent:
+                        case kResolveOp_ForgivingRef:
+                        case kResolveOp_StrictRef:
+                        case kResolveOp_Any:
+                            break;
                     }
                 }
                 break;

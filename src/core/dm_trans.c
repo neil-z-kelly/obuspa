@@ -398,15 +398,22 @@ int DM_TRANS_Abort(void)
             memcpy(&inst, &dt->inst, sizeof(dt->inst));
             memcpy(&inst.nodes, &node->instance_nodes, node->order*sizeof(dm_node_t *));
 
-            if (dt->op == kDMOp_Add)
+            switch(dt->op)
             {
-                // Remove an aborted added object
-                DM_INST_VECTOR_Remove(&inst);
-            }
-            else if (dt->op == kDMOp_Del)
-            {
-                // Add back an aborted deleted object
-                DM_INST_VECTOR_Add(&inst);
+                case kDMOp_Add:
+                    // Remove an aborted added object
+                    DM_INST_VECTOR_Remove(&inst);
+                    break;
+
+                case kDMOp_Del:
+                    // Add back an aborted deleted object
+                    DM_INST_VECTOR_Add(&inst);
+                    break;
+
+                default:
+                case kDMOp_Set:
+                case kDMOp_Max:
+                    break;
             }
         }
     }

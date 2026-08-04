@@ -454,39 +454,40 @@ nu_ipaddr_from_sockaddr_storage(const struct sockaddr_storage *p, nu_ipaddr_t *a
         return USP_ERR_INTERNAL_ERROR;
     }
 
-    if (p->ss_family == AF_INET)
+    switch(p->ss_family)
     {
-        // IPv4
-        sin4 = (struct sockaddr_in *)p;
-        err = nu_ipaddr_from_inaddr(&sin4->sin_addr, addr);
-        if (err != USP_ERR_OK)
-        {
-            return err;
-        }
+        case AF_INET:
+            // IPv4
+            sin4 = (struct sockaddr_in *)p;
+            err = nu_ipaddr_from_inaddr(&sin4->sin_addr, addr);
+            if (err != USP_ERR_OK)
+            {
+                return err;
+            }
 
-        if (port != NULL)
-        {
-            *port = ntohs(sin4->sin_port);
-        }
-    }
-    else if (p->ss_family == AF_INET6)
-    {
-        // IPv6
-        sin6 = (struct sockaddr_in6 *)p;
-        err = nu_ipaddr_from_in6addr(&sin6->sin6_addr, addr);
-        if (err != USP_ERR_OK)
-        {
-            return err;
-        }
+            if (port != NULL)
+            {
+                *port = ntohs(sin4->sin_port);
+            }
+            break;
 
-        if (port != NULL)
-        {
-            *port = ntohs(sin6->sin6_port);
-        }
-    }
-    else
-    {
-        return USP_ERR_INTERNAL_ERROR;
+        case AF_INET6:
+            // IPv6
+            sin6 = (struct sockaddr_in6 *)p;
+            err = nu_ipaddr_from_in6addr(&sin6->sin6_addr, addr);
+            if (err != USP_ERR_OK)
+            {
+                return err;
+            }
+
+            if (port != NULL)
+            {
+                *port = ntohs(sin6->sin6_port);
+            }
+            break;
+
+        default:
+            return USP_ERR_INTERNAL_ERROR;
     }
 
     return USP_ERR_OK;

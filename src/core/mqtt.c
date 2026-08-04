@@ -3836,21 +3836,27 @@ void UnsubscribeCallback(struct mosquitto *mosq, void *userdata, int mid )
     FRAME_TRACE_ADD(client, "mid: %d", sub->mid);
     FRAME_TRACE_DUMP(client);
 
-    if (sub->state == kMqttSubState_Unsubscribing)
+    switch(sub->state)
     {
-        sub->state = kMqttSubState_Unsubscribed;
-    }
-    else if(sub->state == kMqttSubState_Resubscribing)
-    {
-        err = Subscribe(client, sub, is_agent_topic);
-        if (err != USP_ERR_OK)
-        {
-            USP_LOG_Error("%s: Re-Subscribe topic failed", __FUNCTION__);
-        }
-    }
-    else
-    {
-        USP_LOG_Error("%s: Wrong state %d", __FUNCTION__, sub->state);
+        case kMqttSubState_Unsubscribing:
+            sub->state = kMqttSubState_Unsubscribed;
+            break;
+
+        case kMqttSubState_Resubscribing:
+            err = Subscribe(client, sub, is_agent_topic);
+            if (err != USP_ERR_OK)
+            {
+                USP_LOG_Error("%s: Re-Subscribe topic failed", __FUNCTION__);
+            }
+            break;
+
+        default:
+        case kMqttSubState_Unsubscribed:
+        case kMqttSubState_Subscribing:
+        case kMqttSubState_Subscribed:
+        case kMqttSubState_Failed:
+            USP_LOG_Error("%s: Wrong state %d", __FUNCTION__, sub->state);
+            break;
     }
 
 exit:

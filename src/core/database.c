@@ -452,9 +452,10 @@ int DATABASE_GetParameterValue(char *path, dm_hash_t hash, char *instances, char
         result = USP_ERR_OBJECT_DOES_NOT_EXIST;
         goto exit;
     }
-    else if (err != SQLITE_ROW)
+
+    // Exit if an error occurred
+    if (err != SQLITE_ROW)
     {
-        // An error occurred
         USP_ERR_SQL_PARAM(db_handle, "sqlite3_step");
         result = USP_ERR_INTERNAL_ERROR;
         goto exit;
@@ -794,9 +795,10 @@ int DATABASE_ReadDataModelInstanceNumbers(bool remove_unknown_params)
             result = USP_ERR_OK;
             break;
         }
-        else if (sql_err != SQLITE_ROW)
+
+        // Exit loop if an error occurred
+        if (sql_err != SQLITE_ROW)
         {
-            // An error occurred
             USP_ERR_SQL(db_handle,"sqlite3_step");
             result = USP_ERR_INTERNAL_ERROR;
             break;
@@ -900,9 +902,10 @@ void DATABASE_Dump(void)
             // Exit loop if we have processed all rows
             break;
         }
-        else if (err != SQLITE_ROW)
+
+        // Exit loop if an error occurred
+        if (err != SQLITE_ROW)
         {
-            // An error occurred
             USP_ERR_SQL(db_handle,"sqlite3_step");
             break;
         }
@@ -1633,9 +1636,10 @@ int GetAllEntriesForParameter(db_hash_t hash, kv_vector_t *kvv)
             result = USP_ERR_OK;
             break;
         }
-        else if (sql_err != SQLITE_ROW)
+
+        // Exit loop if an error occurred
+        if (sql_err != SQLITE_ROW)
         {
-            // An error occurred
             USP_ERR_SQL(db_handle,"sqlite3_step");
             result = USP_ERR_INTERNAL_ERROR;
             break;

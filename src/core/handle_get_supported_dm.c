@@ -904,47 +904,54 @@ Usp__GetSupportedDMResp__ParamValueType CalcDMSchemaParamType(dm_node_t *node)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_STRING;
     }
-    else if (type_flags & DM_DATETIME)
+
+    if (type_flags & DM_DATETIME)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_DATE_TIME;
     }
-    else if (type_flags & DM_BOOL)
+
+    if (type_flags & DM_BOOL)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_BOOLEAN;
     }
-    else if (type_flags & DM_INT)
+
+    if (type_flags & DM_INT)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_INT;
     }
-    else if (type_flags & DM_UINT)
+
+    if (type_flags & DM_UINT)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_UNSIGNED_INT;
     }
-    else if (type_flags & DM_ULONG)
+
+    if (type_flags & DM_ULONG)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_UNSIGNED_LONG;
     }
-    else if (type_flags & DM_BASE64)
+
+    if (type_flags & DM_BASE64)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_BASE_64;
     }
-    else if (type_flags & DM_HEXBIN)
+
+    if (type_flags & DM_HEXBIN)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_HEX_BINARY;
     }
-    else if (type_flags & DM_DECIMAL)
+
+    if (type_flags & DM_DECIMAL)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_DECIMAL;
     }
-    else if (type_flags & DM_LONG)
+
+    if (type_flags & DM_LONG)
     {
         return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_LONG;
     }
-    else
-    {
-        // This assert should only fire if this function is not updated when new types are added to the data model
-        USP_ASSERT(false);
-    }
+
+    // This assert should only fire if this function is not updated when new types are added to the data model
+    USP_ASSERT(false);
 
     return USP__GET_SUPPORTED_DMRESP__PARAM_VALUE_TYPE__PARAM_UNKNOWN;
 }
