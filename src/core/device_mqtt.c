@@ -197,7 +197,7 @@ int DEVICE_MQTT_Init(void)
                                Notify_MQTTClientAdded, NULL, NULL, Notify_MqttClientDeleted);
     if (err != USP_ERR_OK)
     {
-        USP_LOG_Error("MQTT object registration failed");
+        USP_LOG_Error("%s: MQTT object registration failed", __FUNCTION__);
         return err;
     }
 
@@ -2038,7 +2038,7 @@ int ValidateAdd_Mqttclients(dm_req_t *req)
     mp = FindUnusedMqttParams();
     if (mp == NULL)
     {
-        USP_LOG_Error("Resources exceeded error");
+        USP_LOG_Error("%s: Resources exceeded error", __FUNCTION__);
         return USP_ERR_RESOURCES_EXCEEDED;
     }
     return USP_ERR_OK;
@@ -2064,7 +2064,7 @@ int Notify_MQTTClientAdded(dm_req_t *req)
     err = ProcessMqttClientAdded(inst1);
     if (err != USP_ERR_OK)
     {
-        USP_LOG_Error("Process MQTT client add failed");
+        USP_LOG_Error("%s: Process MQTT client add failed", __FUNCTION__);
         return err;
     }
 
@@ -2076,7 +2076,7 @@ int Notify_MQTTClientAdded(dm_req_t *req)
     err = EnableMQTTClient(mqttclient);
     if (err != USP_ERR_OK)
     {
-        USP_LOG_Error("Enable client failed");
+        USP_LOG_Error("%s: Enable client failed", __FUNCTION__);
         return err;
     }
     return USP_ERR_OK;
@@ -2343,7 +2343,7 @@ int ValidateAdd_MqttClientSubscriptions(dm_req_t *req)
     mqttclient = FindDevMqttClientByInstance(inst1);
     if (mqttclient == NULL)
     {
-        USP_LOG_Error("No matching MQTT client for instance: %d", inst1);
+        USP_LOG_Error("%s: No matching MQTT client for instance: %d", __FUNCTION__, inst1);
         return USP_ERR_RESOURCES_EXCEEDED;
     }
 

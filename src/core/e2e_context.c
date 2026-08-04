@@ -452,10 +452,12 @@ void E2E_CONTEXT_E2eSessionEvent(e2e_event_t event, int request, int controller)
     char err_msg[256];
     int err = USP_ERR_OK;
     char *dest_endpoint = NULL;
-    mtp_conn_t mtp_conn = {0};  // Ensures mtp_conn.is_reply_to_specified=false
+    mtp_conn_t mtp_conn;  // Ensures mtp_conn.is_reply_to_specified=false
     usp_send_item_t usp_send_item;
     e2e_session_t* curr_e2e_session = NULL;
     char *event_str = NULL;
+
+    memset(&mtp_conn, 0, sizeof(mtp_conn));
 
     event_str = E2E_CONTEXT_E2eSessionEventToString(event);
     USP_LOG_Debug("%s: Event %s received on Controller instance %d", __FUNCTION__, event_str, controller);
@@ -678,11 +680,11 @@ int HandleSessionContextRecord(UspRecord__Record *rec, int role_instance, mtp_co
     }
 
     // Append the payload in the SAR vector.
-    if (!SAR_VECTOR_Append(sar_vector,
-                           recv_sess_id,
-                           recv_seq_id,
-                           recv_payload.data,
-                           recv_payload.len))
+    if (SAR_VECTOR_Append(sar_vector,
+                          recv_sess_id,
+                          recv_seq_id,
+                          recv_payload.data,
+                          recv_payload.len) == false)
     {
         // If false is returned, the segment is not valid according to the SAR vector.
         // So terminate/restart the E2E session in that case.
@@ -706,7 +708,7 @@ int HandleSessionContextRecord(UspRecord__Record *rec, int role_instance, mtp_co
 
         // Process the serialized USP Message
         err = USP_ERR_INTERNAL_ERROR;
-        if (buf)
+        if (buf != NULL)
         {
             err = MSG_HANDLER_HandleBinaryMessage(buf, reassembled_size, role_instance, rec->from_id, mtpc);
         }
@@ -830,7 +832,7 @@ int ValidateSessionContextHandling(UspRecord__Record *rec, mtp_conn_t *mtpc)
     }
 
     // Exit if one of the IDs is wrong.
-    if ((!IsValidSessionId(ctx->session_id)) ||
+    if ((IsValidSessionId(ctx->session_id) == false) ||
         (ctx->sequence_id < E2E_FIRST_SEQ_ID) ||
         (ctx->expected_id < E2E_FIRST_SEQ_ID))
     {
@@ -914,7 +916,7 @@ bool IsValidE2eSarState(sar_vector_t *sar_vector, int sar_state)
         default:
         {
             // The vector must have content
-            if (!has_content)
+            if (has_content == false)
             {
                 return false;
             }

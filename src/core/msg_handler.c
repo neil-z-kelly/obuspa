@@ -1284,7 +1284,7 @@ int ValidateUspMsgType(Usp__Header__MsgType msg_type, char *endpoint_id, mtp_con
         FD_VECTOR_Get(mtpc->uds.fd_key, &fd_count);
         if (fd_count != 0 && msg_type != USP__HEADER__MSG_TYPE__OPERATE_RESP && msg_type != USP__HEADER__MSG_TYPE__NOTIFY)
         {
-            USP_ERR_SetMessage("Request denied");
+            USP_ERR_SetMessage("%s: Request denied", __FUNCTION__);
             return USP_ERR_REQUEST_DENIED;
         }
     }

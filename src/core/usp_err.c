@@ -532,7 +532,7 @@ void USP_ERR_Terminate_OnAssert(const char *func, int line, char *statement)
 **************************************************************************/
 void SegFaultHandler(int sig)
 {
-    USP_LOG_Error("ERROR: Segmentation Fault");
+    USP_LOG_Error("%s: Segmentation Fault", __FUNCTION__);
     USP_LOG_Callstack();
     abort();    // call abort() rather than exit() so that a core dump is created
 }

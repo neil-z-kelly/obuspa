@@ -496,7 +496,7 @@ void DEVICE_BULKDATA_NotifyTransferResult(int profile_id, bdc_transfer_result_t 
     }
     else
     {
-        USP_LOG_Warning("BULK DATA: Failed to send report (profile_id=%d) on retry_count=%d", profile_id, bp->retry_count);
+        USP_LOG_Warning("%s: BULK DATA: Failed to send report (profile_id=%d) on retry_count=%d", __FUNCTION__, profile_id, bp->retry_count);
         if (bp->retry_enable)
         {
             // Report(s) have not been sent successfully, so start the retry mechanism (or increment the retry_count, if it is already in progress)
@@ -1665,7 +1665,8 @@ int bulkdata_platform_get_uri_query_name_map(int profile_id, kv_vector_t *name_m
         }
 
         // Skip this parameter, if it is still blank (when the ACS creates a row, the default is for this parameter to be blank)
-        if (ref[0] == '\0') {
+        if (ref[0] == '\0')
+        {
             continue;
         }
 
@@ -1816,11 +1817,13 @@ char *bulkdata_platform_calc_uri_query_string(kv_vector_t *escaped_map)
 
         // Append '&' or '?', depending on whether this is the first query parameter which we are serializing
         q = &query_string[cur_len];
-        if (first_query_param) {
+        if (first_query_param)
+        {
             *q++ = '?';                 // First query param, starts with '?'
             first_query_param = false;
         }
-        else {
+        else
+        {
             *q++ = '&';                 // Subsequent query params, start with '&'
         }
 

@@ -491,7 +491,7 @@ void STOMP_UpdateAllSockSet(socket_set_t *set)
                 if (cur_time >= expected_heartbeat_time)
                 {
                     // Cause a retry to occur
-                    USP_LOG_Error("ERROR: STOMP server heartbeat not received (cur_time=%d, last_received_time=%d)", (int)cur_time, (int)sc->last_received_time);
+                    USP_LOG_Error("%s: STOMP server heartbeat not received (cur_time=%d, last_received_time=%d)", __FUNCTION__, (int)cur_time, (int)sc->last_received_time);
                     HandleStompSocketError(sc, kStompFailure_Timeout);
                 }
                 else
@@ -1546,7 +1546,7 @@ exit:
     // Wind back state
     if (stomp_err != kStompFailure_None)
     {
-        USP_LOG_Error("ERROR: STOMP failed whilst attempting to connect to (host=%s, port=%d)", sc->host, sc->port);
+        USP_LOG_Error("%s: STOMP failed whilst attempting to connect to (host=%s, port=%d)", __FUNCTION__, sc->host, sc->port);
         HandleStompSocketError(sc, stomp_err);
     }
 }
@@ -2477,7 +2477,7 @@ int ReceiveStompMessageInner(stomp_connection_t *sc, unsigned char *buf, int num
     // Prevent rogue controllers from crashing agent by setting an arbitrary message size limit
     if (new_len > MAX_USP_MSG_LEN)
     {
-        USP_LOG_Error("ERROR: STOMP Connection to (host %s, port %d) receiving a message >%d bytes long. Closing connection.", sc->host, sc->port, MAX_USP_MSG_LEN);
+        USP_LOG_Error("%s: STOMP Connection to (host %s, port %d) receiving a message >%d bytes long. Closing connection.", __FUNCTION__, sc->host, sc->port, MAX_USP_MSG_LEN);
         HandleStompSocketError(sc, kStompFailure_OtherError);
         return USP_ERR_INTERNAL_ERROR;
     }
@@ -2872,7 +2872,7 @@ void HandleStompMessage(stomp_connection_t *sc, int msg_size)
         case kStompState_SendingStompFrame:
         case kStompState_SendingSubscribeFrame:
             // Code should never get here
-            USP_LOG_Error("WARNING: Ignoring unexpected message whilst STOMP connection was in state %d\n", sc->state);
+            USP_LOG_Error("%s: Ignoring unexpected message whilst STOMP connection was in state %d\n", __FUNCTION__, sc->state);
             break;
 
         default:
@@ -2961,7 +2961,9 @@ void HandleRxMsg_RunningState(stomp_connection_t *sc, int msg_size)
     char content_type[64];
     bool is_present;
     char time_buf[MAX_ISO8601_LEN];
-    mtp_conn_t mtp_conn = {0};
+    mtp_conn_t mtp_conn;
+
+    memset(&mtp_conn, 0, sizeof(mtp_conn));
 
     // Exit if this is not the expected MESSAGE frame
     if (IsFrame("MESSAGE", sc->rxframe, msg_size) == false)
@@ -3269,7 +3271,7 @@ void HandleStompSocketError(stomp_connection_t *sc, stomp_failure_t failure_code
     }
 
     // Undo transient state associated with the connection
-    USP_LOG_Error("Error on STOMP connection to (host %s, port %d). Closing connection.", sc->host, sc->port);
+    USP_LOG_Error("%s: Error on STOMP connection to (host %s, port %d). Closing connection.", __FUNCTION__, sc->host, sc->port);
     StopStompConnection(sc, DONT_PURGE_QUEUED_MESSAGES);
 
     // Start retrying this connection
@@ -3924,7 +3926,7 @@ void UpdateWANInterface(bool is_first_time)
 
 
     // Iterate over all STOMP connections, stopping and restarting the ones that are enabled
-    USP_LOG_Warning("Mgmt IP Address changed to %s. Restarting all STOMP connections.", cur_mgmt_ip_addr);
+    USP_LOG_Warning("%s: Mgmt IP Address changed to %s. Restarting all STOMP connections.", __FUNCTION__, cur_mgmt_ip_addr);
     for (i=0; i<MAX_STOMP_CONNECTIONS; i++)
     {
         sc = &stomp_connections[i];
@@ -3968,7 +3970,7 @@ void HandleStompSourceIPAddrChanges(void)
             if (has_changed)
             {
                 // Stop, then restart the STOMP connection
-                USP_LOG_Warning("Mgmt IP Address for interface=%s changed. Restarting STOMP connection %d.", sc->mgmt_if_name, sc->instance);
+                USP_LOG_Warning("%s: Mgmt IP Address for interface=%s changed. Restarting STOMP connection %d.", __FUNCTION__, sc->mgmt_if_name, sc->instance);
                 StopStompConnection(sc, DONT_PURGE_QUEUED_MESSAGES);
                 StartStompConnection(sc);
             }

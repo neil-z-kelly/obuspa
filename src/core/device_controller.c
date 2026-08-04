@@ -2471,9 +2471,11 @@ void SendOnBoardRequestNotify(Usp__Msg *req, controller_t* controller)
     int size;
     time_t retry_expiry_time;
     char *dest_endpoint;
-    mtp_conn_t mtp_conn = {0};  // Ensures mtp_conn.is_reply_to_specified=false
+    mtp_conn_t mtp_conn;  // Ensures mtp_conn.is_reply_to_specified=false
     usp_send_item_t usp_send_item;
     char *msg_id;
+
+    memset(&mtp_conn, 0, sizeof(mtp_conn));
 
     // Exit if unable to determine the endpoint of the controller
     // This could occur if the controller had been deleted

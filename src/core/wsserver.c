@@ -152,7 +152,7 @@ void FreeWebsockServerConnection(wsconn_t *wc);
 void CopyWssConfig(wsserv_config_t *dest, wsserv_config_t *src);
 void DestroyWssConfig(wsserv_config_t *config);
 void LogWsserverDebug(int level, const char *line);
-int AddWsservUspExtension(struct lws *handle, char **ppHeaders, int headers_len);
+int AddWsservUspExtension(struct lws *handle, char **headers, int headers_len);
 void RemoveExpiredWsservMessages(wsconn_t *wc);
 bool IsUspRecordInWsservQueue(wsconn_t *wc, unsigned char *pbuf, int pbuf_len);
 int HandleWssEvent_LoadCerts(SSL_CTX *ssl_ctx);
@@ -1298,15 +1298,15 @@ int ValidateReceivedWsservProtocolExtension(struct lws *handle)
 ** in the websocket initiation handshake response
 **
 ** \param   handle - libwebsockets handle identifying the connection with activity on it
-** \param   ppHeaders - pointer to variable containing a pointer to a buffer containing the headers
+** \param   headers - pointer to variable containing a pointer to a buffer containing the headers
 ** \param   headers_len - total size of the libwebsockets buffer containing the headers
 **
 ** \return  0 if successful, -1 to close the connection
 **
 **************************************************************************/
-int AddWsservUspExtension(struct lws *handle, char **ppHeaders, int headers_len)
+int AddWsservUspExtension(struct lws *handle, char **headers, int headers_len)
 {
-    char *pHeadersEnd;
+    char *headers_end;
     char buf[128];
     int len;
     int err;
@@ -1319,9 +1319,9 @@ int AddWsservUspExtension(struct lws *handle, char **ppHeaders, int headers_len)
     }
 
     // If unable to add the header, then return an error, which will cause the connection to be dropped
-    pHeadersEnd = (*ppHeaders) + headers_len;
+    headers_end = &((*headers)[headers_len]);
     len = USP_SNPRINTF(buf, sizeof(buf), "bbf-usp-protocol; eid=\"%s\"", DEVICE_LOCAL_AGENT_GetEndpointID());
-    err = lws_add_http_header_by_token(handle, WSI_TOKEN_EXTENSIONS, (unsigned char *)buf, len, (unsigned char **)ppHeaders, (unsigned char *)pHeadersEnd);
+    err = lws_add_http_header_by_token(handle, WSI_TOKEN_EXTENSIONS, (unsigned char *)buf, len, (unsigned char **)headers, (unsigned char *)headers_end);
     if (err != 0)
     {
         USP_LOG_Error("%s: lws_add_http_header_by_token() returned %d", __FUNCTION__, err);
@@ -1479,7 +1479,7 @@ int HandleWssEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
     wc->rx_buf_len += chunk_len;
 
     // Exit if not all chunks of the USP Record have been received yet
-    if (!lws_is_final_fragment(handle))
+    if (lws_is_final_fragment(handle) == 0)
     {
         return 0;
     }

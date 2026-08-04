@@ -147,7 +147,7 @@ void PrintProtobufCMessageRecursive(ProtobufCMessage *msg, int indent)
 
             case PROTOBUF_C_LABEL_OPTIONAL:
                 // Only print optional elements, if they were present
-                if (quantifier)
+                if (quantifier != 0)
                 {
                     PrintProtobufFieldRecursive(fields, p_value, indent);
                 }

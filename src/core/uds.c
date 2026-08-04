@@ -178,7 +178,7 @@ void CloseUdsConnection(uds_connection_t *uc, bool retry);
 int CreateUdsClient(uds_conn_params_t *ucp);
 int StartUdsClient(uds_connection_t *uc);
 int EnableUdsServer(uds_conn_params_t *ucp);
-char *ValidateUdsEndpointID(char *endpointID, uds_path_t path_type);
+char *ValidateUdsEndpointID(char *endpoint_id, uds_path_t path_type);
 void SendUdsErrorFrame(uds_connection_t *uc, char* errorString);
 void SendUdsFrames(uds_connection_t *uc);
 void ReadUdsFrames(uds_connection_t *uc);
@@ -1664,18 +1664,20 @@ void ReadUdsFrames(uds_connection_t *uc)
     int num_bytes = 0;
 
 #ifdef FD_PASSING_EXPERIMENTAL
-    struct msghdr bmsg = {0};
+    struct msghdr bmsg;
     struct cmsghdr* cmsg;
     struct iovec iov;
     union {
         struct cmsghdr align;
         char buffer[CMSG_SPACE(sizeof(int) * MAX_UDS_FDS)];
     } control_un;
+    int fd_amount = 0;
+
+    memset(&bmsg, 0, sizeof(bmsg));
     bmsg.msg_iov = &iov;
     bmsg.msg_iovlen = 1;
     bmsg.msg_control = control_un.buffer;
     bmsg.msg_controllen = CMSG_SPACE(sizeof(int) * MAX_UDS_FDS);
-    int fd_amount = 0;
 #endif
 
     USP_ASSERT(uc->socket != INVALID);
@@ -1978,37 +1980,37 @@ void SendUdsErrorFrame(uds_connection_t *uc, char* errorString)
 **
 ** Private internal function to validate EndpointID from a received UDS handshake
 **
-** \param   endpointID - endpointID string
+** \param   endpoint_id - Endpoint ID string
 **
 ** \param   path_type - whether the endpoint is connected to the Broker's Controller or the Broker's Agent socket
 **
-** \return  a NULL if endpointID is valid or error string if endpointID is not valid
+** \return  a NULL if endpoint_id is valid or error string if endpoint_id is not valid
 **
 **************************************************************************/
-char *ValidateUdsEndpointID(char* endpointID, uds_path_t path_type)
+char *ValidateUdsEndpointID(char *endpoint_id, uds_path_t path_type)
 {
     int i;
     int count;
     uds_connection_t *uc;
     char *our_endpoint_id;
 
-    if ((strcmp(endpointID, "") == 0) || (strcmp(endpointID, " ") == 0))
+    if ((strcmp(endpoint_id, "") == 0) || (strcmp(endpoint_id, " ") == 0))
     {
         return "NULL or empty string in EndpointID, Failed to process Handshake Frame";
     }
 
     // Determine if EndpointID contains two colons
     count = 0;
-    for (i=0; endpointID[i] != '\0'; i++)
+    for (i=0; endpoint_id[i] != '\0'; i++)
     {
-        if(endpointID[i] ==':')
+        if (endpoint_id[i] == ':')
         {
             count++;
         }
     }
 
     // Exit if EndpointID does not contain two colons
-    if (count!=2)
+    if (count != 2)
     {
         return "Incorrect format of EndpointID, Failed to process Handshake Frame";
     }
@@ -2019,16 +2021,16 @@ char *ValidateUdsEndpointID(char* endpointID, uds_path_t path_type)
 
         uc = &uds_connections[i];
         if ((uc->instance != INVALID) && (uc->endpoint_id != NULL) &&
-            (uc->path_type == path_type) && (strcmp(endpointID, uc->endpoint_id) == 0))
+            (uc->path_type == path_type) && (strcmp(endpoint_id, uc->endpoint_id) == 0))
         {
-            USP_LOG_Info("%s: Found matching path type %s and endpoint ID %s in existing connections", __FUNCTION__, UDS_PathTypeToString(path_type), endpointID);
+            USP_LOG_Info("%s: Found matching path type %s and endpoint ID %s in existing connections", __FUNCTION__, UDS_PathTypeToString(path_type), endpoint_id);
             return "Duplicate EndpointID connecting on same UDS path, Failed to process Handshake Frame";
         }
     }
 
     // Disallow connections between endpoints with the same Endpoint ID
     our_endpoint_id = DEVICE_LOCAL_AGENT_GetEndpointID();
-    if (strcmp(endpointID, our_endpoint_id)==0)
+    if (strcmp(endpoint_id, our_endpoint_id) == 0)
     {
         return "Connecting EndpointID is the same as this Endpoint, Failed to process Handshake Frame";
     }
@@ -2277,7 +2279,7 @@ unsigned int PopUdsSendItem(uds_connection_t *uc)
     cmsg->cmsg_level = SOL_SOCKET;
     cmsg->cmsg_type = SCM_RIGHTS;
     cmsg->cmsg_len = CMSG_LEN(sizeof(int) * fd_count);
-    if (fd_buffer)
+    if (fd_buffer != NULL)
     {
         memcpy(CMSG_DATA(cmsg), fd_buffer, sizeof(int) * fd_count);
     }
@@ -2405,7 +2407,7 @@ void PopUdsSendItem(uds_connection_t *uc)
     success = true;
 
 exit:
-    if (!success)
+    if (success == false)
     {
         if (bmsg != NULL)
         {
@@ -2561,7 +2563,7 @@ void RemoveExpiredUdsMessages(uds_connection_t *uc)
         if (cur_time > queued_msg->expiry_time)
         {
             iso8601_from_unix_time(queued_msg->expiry_time, exp_time_buf, sizeof(exp_time_buf));
-            USP_LOG_Warning("Removing message from queue with expiry time = %s, current time = %s", exp_time_buf, cur_time_buf);
+            USP_LOG_Warning("%s: Removing message from queue with expiry time = %s, current time = %s", __FUNCTION__, exp_time_buf, cur_time_buf);
             RemoveUdsQueueItem(uc, queued_msg);
         }
 
@@ -2901,8 +2903,8 @@ void ProcessUdsTLV_Error(uds_connection_t *uc, unsigned char *tlv_payload, unsig
     buf[len] = '\0'; // NULL terminate the error string
 
     // Log the error message
-    USP_LOG_Error("Received UDS ERROR from endpoint_id=%s on %s", EndpointIdForLog(uc), uc->socket_path);
-    USP_LOG_Error("UDS ERROR is '%s'", buf);
+    USP_LOG_Error("%s: Received UDS ERROR from endpoint_id=%s on %s", __FUNCTION__, EndpointIdForLog(uc), uc->socket_path);
+    USP_LOG_Error("%s: UDS ERROR is '%s'", __FUNCTION__, buf);
 
 #ifdef FD_PASSING_EXPERIMENTAL
     if (uc->fd_count != 0)

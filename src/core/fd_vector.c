@@ -110,7 +110,8 @@ unsigned int FD_VECTOR_New_Key()
 
     do
     {
-        key = ++global_fd_id;
+        global_fd_id++;
+        key = global_fd_id;
         if (key == 0)
         {
             continue;
@@ -224,12 +225,16 @@ void FD_VECTOR_Remove(const unsigned int key)
         {
             new_num_entries = global_vector.num_entries - 1;
             num_entries_after = new_num_entries - i;
-            if (num_entries_after > 0) {
+            if (num_entries_after > 0)
+            {
                 memmove(&global_vector.vector[i], &global_vector.vector[i + 1], sizeof(fd_pair_t) * num_entries_after);
             }
-            if (new_num_entries > 0) {
+            if (new_num_entries > 0)
+            {
                 global_vector.vector = USP_REALLOC(global_vector.vector, new_num_entries * sizeof(fd_pair_t));
-            } else {
+            }
+            else
+            {
                 USP_FREE(global_vector.vector);
                 global_vector.vector = NULL;
             }

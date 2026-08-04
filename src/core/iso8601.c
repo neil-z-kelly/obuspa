@@ -132,28 +132,43 @@ size_t
 iso8601_strftime(char *buf, size_t buflen, const struct tm *tm)
 {
     size_t sz;
+    long absoff;
 
-    if (!tm || !buf || (buflen == 0)) {
+    // Exit if the arguments are not correctly specified
+    if ((tm == NULL) || (buf == NULL) || (buflen == 0))
+    {
         return 0;
     }
-    if (tm->tm_gmtoff == 0) {
-        sz = strftime(buf, buflen, "%FT%TZ", tm);
-    } else {
-        sz = strftime(buf, buflen, "%FT%T", tm);
-        if (sz < buflen) {
-            long absoff;
 
-            if (tm->tm_gmtoff < 0) {
-                absoff = -tm->tm_gmtoff;
-            } else {
-                absoff = tm->tm_gmtoff;
-            }
-            sz += USP_SNPRINTF(&buf[sz], buflen - sz,
-                     "%c%02ld:%02ld",
-                     (tm->tm_gmtoff < 0) ? '-' : '+',
-                     absoff / 3600, (absoff % 3600) / 60);
-        }
+    // Exit if the time is UTC, formatting it with the 'Z' timezone designator
+    if (tm->tm_gmtoff == 0)
+    {
+        sz = strftime(buf, buflen, "%FT%TZ", tm);
+        return sz;
     }
+
+    // Exit if there is no room left in the buffer for the timezone designator
+    sz = strftime(buf, buflen, "%FT%T", tm);
+    if (sz >= buflen)
+    {
+        return sz;
+    }
+
+    // Append the timezone designator as an offset from UTC
+    if (tm->tm_gmtoff < 0)
+    {
+        absoff = -tm->tm_gmtoff;
+    }
+    else
+    {
+        absoff = tm->tm_gmtoff;
+    }
+
+    sz += USP_SNPRINTF(&buf[sz], buflen - sz,
+             "%c%02ld:%02ld",
+             (tm->tm_gmtoff < 0) ? '-' : '+',
+             absoff / 3600, (absoff % 3600) / 60);
+
     return sz;
 }
 
@@ -169,14 +184,18 @@ iso8601_strftime(char *buf, size_t buflen, const struct tm *tm)
 size_t
 iso8601_us_strftime(char *buf, size_t bufsiz, const struct timeval *tv)
 {
-        if (!buf || !tv || bufsiz < 8) {
-            return -1;
-        }
+    size_t sz;
 
-        size_t sz;
-        sz = strftime(buf, bufsiz-8, "%FT%T.", gmtime(&tv->tv_sec));
-        sz += sprintf(buf+strlen(buf), "%06ldZ", (long int)tv->tv_usec);
-        return sz;
+    // Exit if the arguments are not correctly specified
+    if ((buf == NULL) || (tv == NULL) || (bufsiz < 8))
+    {
+        return -1;
+    }
+
+    sz = strftime(buf, bufsiz-8, "%FT%T.", gmtime(&tv->tv_sec));
+    sz += sprintf(&buf[strlen(buf)], "%06ldZ", (long int)tv->tv_usec);
+
+    return sz;
 }
 
 /*********************************************************************//**
@@ -254,15 +273,16 @@ uptime_strftime(char *buf, size_t buflen, unsigned uptime)
     int mins;
     int secs;
     int total_days;
-
     size_t sz;
 
-    if (!buf || (buflen == 0)) {
+    // Exit if the arguments are not correctly specified
+    if ((buf == NULL) || (buflen == 0))
+    {
         return 0;
     }
 
     total_days = uptime / (24 * 3600);
-    years = total_days / (12 * 30);  /* 12mon * 30days/mon */
+    years = total_days / (12 * 30);  // 12mon * 30days/mon
     days = total_days % (12 * 30);
     months = days / 30;
     days = days % 30;

@@ -1578,13 +1578,15 @@ void ObtainUnresolvedSEKeys(char *path, table_watch_t *tw, kv_vector_t *keys)
 int ResolvePermSE_NonUspService(dm_node_t *node, int group_id, char *table, char *param, char *value)
 {
     int i;
-    dm_instances_t inst = { 0 };
+    dm_instances_t inst;
     int_vector_t instance_numbers;
     int err;
     int instance;
     group_get_vector_t ggv;
     group_get_entry_t *gge;
     char buf[MAX_DM_PATH];
+
+    memset(&inst, 0, sizeof(inst));
 
     // Exit if unable to get the instances
     INT_VECTOR_Init(&instance_numbers);

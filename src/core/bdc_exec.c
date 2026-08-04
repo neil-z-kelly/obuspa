@@ -761,7 +761,7 @@ bdc_transfer_result_t CalcBdcTransferResult(CURL *curl_ctx, CURLcode curl_res, i
     // Exit if an error occurred during the transfer
     if (curl_res != CURLE_OK)
     {
-        USP_LOG_Error("BULK DATA: report sending failed for profile_id=%d (curl_res=%d, %s)", profile_id, curl_res, curl_easy_strerror(curl_res));
+        USP_LOG_Error("%s: BULK DATA: report sending failed for profile_id=%d (curl_res=%d, %s)", __FUNCTION__, profile_id, curl_res, curl_easy_strerror(curl_res));
         return transfer_result;
     }
 
@@ -778,7 +778,7 @@ bdc_transfer_result_t CalcBdcTransferResult(CURL *curl_ctx, CURLcode curl_res, i
     // Exit if upload failed
     if ((lval < 200) || (lval > 299))
     {
-        USP_LOG_Warning("BULK DATA: upload failed with server response code %ld for profile_id=%d", lval, profile_id);
+        USP_LOG_Warning("%s: BULK DATA: upload failed with server response code %ld for profile_id=%d", __FUNCTION__, lval, profile_id);
         transfer_result = (lval == 401) ? kBDCTransferResult_Failure_Auth :  kBDCTransferResult_Failure_Other;
         return transfer_result;
     }

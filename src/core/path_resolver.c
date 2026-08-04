@@ -1277,7 +1277,7 @@ int SplitReferenceKeysFromkeys(expr_vector_t *all_keys, expr_vector_t *keys, exp
         ec = &all_keys->vector[i];
         is_ref = strchr(ec->param, '+');
 
-        if (is_ref)
+        if (is_ref != NULL)
         {
             param_len = strlen(ec->param);
             // Error if reference follow does not have a key after the reference object
@@ -1681,7 +1681,7 @@ int CheckPathPermission(char *path, resolver_state_t *state, int *gid, int *para
     }
 
     *gid = param_group_id;
-    if (param_type)
+    if (param_type != NULL)
     {
         *param_type = (int)param_type_flags;
     }

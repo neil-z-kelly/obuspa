@@ -508,6 +508,7 @@ int USP_SIGNAL_OperationComplete(int instance, int err_code, char *err_msg, kv_v
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_OperComplete;
     ocm = &msg.params.oper_complete;
@@ -561,6 +562,7 @@ int USP_SIGNAL_DataModelEvent(char *event_name, kv_vector_t *output_args)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_EventComplete;
     ecm = &msg.params.event_complete;
@@ -618,6 +620,7 @@ int USP_SIGNAL_OperationStatus(int instance, char *status)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_OperStatus;
     osm = &msg.params.oper_status;
@@ -671,6 +674,7 @@ int USP_SIGNAL_ObjectAdded(char *path)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_ObjAdded;
     oam = &msg.params.obj_added;
@@ -723,6 +727,7 @@ int USP_SIGNAL_ObjectDeleted(char *path)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_ObjDeleted;
     odm = &msg.params.obj_deleted;
@@ -787,6 +792,7 @@ int USP_SIGNAL_Reboot(int request_instance, char *command_key, char *reboot_caus
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_Reboot;
     rm = &msg.params.reboot;
@@ -846,6 +852,7 @@ int USP_PROCESS_DoWork(do_work_cb_t do_work_cb, void *arg1, void *arg2)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_DoWork;
     dwm = &msg.params.do_work;
@@ -884,7 +891,9 @@ int USP_PROCESS_DoWork(do_work_cb_t do_work_cb, void *arg1, void *arg2)
 int USP_PROCESS_DoWorkSync(do_work_cb_t do_work_cb, void *arg1, void *arg2)
 {
     int err;
-    work_sync_ctx_t ctx = {0};
+    work_sync_ctx_t ctx;
+
+    memset(&ctx, 0, sizeof(ctx));
 
     // Exit if called from the data model thread
     // The pthread_cond_wait function cannot be called from the data model thread, as that will cause deadlock
@@ -910,7 +919,7 @@ int USP_PROCESS_DoWorkSync(do_work_cb_t do_work_cb, void *arg1, void *arg2)
 
     // Wait for condition variable to signal done
     pthread_mutex_lock(&ctx.mutex);
-    while (!ctx.done)
+    while (ctx.done == false)
     {
         err = pthread_cond_wait(&ctx.cond, &ctx.mutex);
         if (err != 0)
@@ -949,7 +958,9 @@ exit:
 int USP_PROCESS_DM_GetParameterValue(char *path, char *buf, int len, char *err_msg, int err_msg_len)
 {
     int err;
-    work_dm_get_t get = {0};
+    work_dm_get_t get;
+
+    memset(&get, 0, sizeof(get));
 
     // Exit if any of the input arguments are invalid
     if ((path==NULL) || (buf==NULL) || (len==0))
@@ -993,7 +1004,9 @@ int USP_PROCESS_DM_GetParameterValue(char *path, char *buf, int len, char *err_m
 int USP_PROCESS_DM_SetParameterValue(char *path, char *new_value, char *err_msg, int err_msg_len)
 {
     int err;
-    work_dm_set_t set = {0};
+    work_dm_set_t set;
+
+    memset(&set, 0, sizeof(set));
 
     // Exit if any of the input arguments are invalid
     if ((path==NULL) || (new_value==NULL))
@@ -1051,6 +1064,7 @@ void DM_EXEC_PostUspRecord(unsigned char *pbuf, int pbuf_len, char *originator, 
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_ProcessUspRecord;
     pur = &msg.params.usp_record;
@@ -1130,6 +1144,7 @@ void DM_EXEC_PostStompHandshakeComplete(int stomp_instance, char *agent_queue, i
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_StompHandshakeComplete;
     scm = &msg.params.stomp_complete;
@@ -1181,6 +1196,7 @@ void DM_EXEC_PostMqttHandshakeComplete(int mqtt_instance, mqtt_protocolver_t ver
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_MqttHandshakeComplete;
     mcm = &msg.params.mqtt_complete;
@@ -1231,6 +1247,7 @@ void DM_EXEC_PostWebsockHandshakeComplete(int cont_instance, int role_instance)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_WebsockHandshakeComplete;
     wcm = &msg.params.websock_complete;
@@ -1274,6 +1291,7 @@ void DM_EXEC_PostUdsHandshakeComplete(char *endpoint_id, int instance, uds_path_
     int mq_tx_socket = main_mq_tx_socket;
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_UdsHandshakeComplete;
     ucm = &msg.params.uds_complete;
@@ -1324,6 +1342,7 @@ void DM_EXEC_PostUdsDisconnected(char *endpoint_id, uds_path_t path_type)
     int mq_tx_socket = main_mq_tx_socket;
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_UdsDisconnected;
     udm = &msg.params.uds_disconnected;
@@ -1379,6 +1398,7 @@ void DM_EXEC_PostMtpThreadExited(unsigned flags)
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_MtpThreadExited;
     tem = &msg.params.mtp_thread_exited;
@@ -1425,6 +1445,7 @@ int DM_EXEC_NotifyBdcTransferResult(int profile_id, bdc_transfer_result_t transf
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_BdcTransferResult;
     btr = &msg.params.bdc_transfer_result;
@@ -1485,6 +1506,7 @@ int DM_EXEC_PostE2eEvent(e2e_event_t event, int request_instance, int controller
     }
 
     // Form message
+
     memset(&msg, 0, sizeof(msg));
     msg.type = kDmExecMsg_E2eSessionEvent;
     erm = &msg.params.e2e_event;
@@ -2334,6 +2356,7 @@ void HandleUdsHandshakeComplete(char *endpoint_id, int instance, uds_path_t path
     {
         // Add the endpoint into the USP Service table
         mtp_conn_t mtpc;
+
         memset(&mtpc, 0, sizeof(mtpc));
         mtpc.protocol = kMtpProtocol_UDS;
         mtpc.is_reply_to_specified = true;

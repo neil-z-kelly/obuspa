@@ -367,7 +367,9 @@ void SubsRetryExec(int id)
     subs_retry_t *sr;
     time_t cur_time;
     char buf[MAX_ISO8601_LEN];
-    mtp_conn_t mtp_conn = {0};  // Ensures mtp_conn.is_reply_to_specified=false
+    mtp_conn_t mtp_conn;  // Ensures mtp_conn.is_reply_to_specified=false
+
+    memset(&mtp_conn, 0, sizeof(mtp_conn));
 
     cur_time = time(NULL);
     USP_ASSERT(cur_time >= first_retry_time);

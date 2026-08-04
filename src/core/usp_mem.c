@@ -490,7 +490,7 @@ void USP_MEM_PrintSummary(void)
     }
     else
     {
-        USP_LOG_Warning("WARNING: Unable to log memory in use. mallinfo/mallinfo2() not present");
+        USP_LOG_Warning("%s: Unable to log memory in use. mallinfo/mallinfo2() not present", __FUNCTION__);
     }
 }
 
@@ -770,7 +770,7 @@ void GetCallers(char **callers, int num_callers)
     for (i=0; i<stack_end; i++)
     {
         symbols_found = dladdr(stack_start[i], &info);
-        if (symbols_found)
+        if (symbols_found != 0)
         {
             func_name = (info.dli_sname != NULL) ? info.dli_sname : "Unknown";
             callers[i] = (char *)func_name;

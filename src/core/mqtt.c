@@ -772,13 +772,13 @@ exit:
 **************************************************************************/
 const char *MQTT_GetClientStatus(int instance)
 {
-    OS_UTILS_LockMutex(&mqtt_access_mutex);
-
-    mqtt_client_t *client = NULL;
-    client = FindMqttClientByInstance(instance);
+    mqtt_client_t *client;
     const char *status;
 
-    if (client)
+    OS_UTILS_LockMutex(&mqtt_access_mutex);
+
+    client = FindMqttClientByInstance(instance);
+    if (client != NULL)
     {
         switch (client->state)
         {
@@ -839,10 +839,11 @@ const char *MQTT_GetClientStatus(int instance)
 bool MQTT_AreAllResponsesSent(void)
 {
     int i;
-    OS_UTILS_LockMutex(&mqtt_access_mutex);
-
     bool responses_sent = true;
     bool all_responses_sent = true;
+    mqtt_client_t *client;
+
+    OS_UTILS_LockMutex(&mqtt_access_mutex);
 
     // Not strictly needed - but to protect against bad calling
     if (is_mqtt_mtp_thread_exited)
@@ -850,8 +851,6 @@ bool MQTT_AreAllResponsesSent(void)
         OS_UTILS_UnlockMutex(&mqtt_access_mutex);
         return true;
     }
-
-    mqtt_client_t *client = NULL;
 
     for (i = 0; i < MAX_MQTT_CLIENTS; i++)
     {
@@ -861,7 +860,7 @@ bool MQTT_AreAllResponsesSent(void)
             // Check if the queue is empty
             responses_sent = (client->usp_record_send_queue.head == NULL);
         }
-        if (!responses_sent)
+        if (responses_sent == false)
         {
             all_responses_sent = false;
         }
@@ -1939,7 +1938,7 @@ void InitRetry(mqtt_retry_params_t *retry)
 **************************************************************************/
 void ResetRetryCount(mqtt_client_t* client)
 {
-    if (client)
+    if (client != NULL)
     {
         client->retry_time = 0;
         client->retry_count = 0;
@@ -3350,7 +3349,7 @@ int SubscribeV5(mqtt_client_t *client, mqtt_subscription_t *sub)
     FRAME_TRACE_ADD(client, "mid: %d", sub->mid);
 
 error:
-    if (proplist)
+    if (proplist != NULL)
     {
         // Free prop list now we're finished with it.
         mosquitto_property_free_all(&proplist);
@@ -3749,7 +3748,7 @@ int UnsubscribeV5(mqtt_client_t *client, mqtt_subscription_t *sub)
     }
 
 error:
-    if (proplist)
+    if (proplist != NULL)
     {
         // Free all properties now that we're done with them.
         mosquitto_property_free_all(&proplist);
@@ -4197,8 +4196,10 @@ exit:
 **************************************************************************/
 void ReceiveMqttMessage(mqtt_client_t *client, const struct mosquitto_message *message, char *response_topic)
 {
-    mtp_conn_t mtpc = {0};
+    mtp_conn_t mtpc;
     char time_buf[MAX_ISO8601_LEN];
+
+    memset(&mtpc, 0, sizeof(mtpc));
 
     mtpc.protocol = kMtpProtocol_MQTT;
     mtpc.mqtt.instance = client->conn_params.instance;

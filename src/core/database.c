@@ -814,7 +814,7 @@ int DATABASE_ReadDataModelInstanceNumbers(bool remove_unknown_params)
         if ((err != USP_ERR_OK) && (remove_unknown_params))
         {
             // Remove this parameter from the database. It is no longer in the data model schema.
-            USP_LOG_Warning("Removing unknown parameter (hash=%d, instances='%s') from the database", hash, instances);
+            USP_LOG_Warning("%s: Removing unknown parameter (hash=%d, instances='%s') from the database", __FUNCTION__, hash, instances);
             DATABASE_DeleteParameter("Unknown", hash, instances);
         }
     }

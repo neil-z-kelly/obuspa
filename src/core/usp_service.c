@@ -209,8 +209,10 @@ void USP_SERVICE_QueueRegisterRequest(char *endpoint_id, char *objects)
     Usp__Msg *msg;
     dm_node_t *node;
     dm_instances_t inst;
-    mtp_conn_t mtpc = {0};
+    mtp_conn_t mtpc;
     char msg_id[MAX_MSG_ID_LEN];
+
+    memset(&mtpc, 0, sizeof(mtpc));
 
     USP_ASSERT(objects != NULL);
     mtpc.is_reply_to_specified = false;   // Force DEVICE_CONTROLLER_QueueBinaryMessage() to calculate an MRT destination for the request
@@ -379,8 +381,10 @@ void USP_SERVICE_QueueDeregisterRequest(char *endpoint_id, char *objects)
     Usp__Msg *msg = NULL;
     dm_node_t *node;
     dm_instances_t inst;
-    mtp_conn_t mtpc = {0};
+    mtp_conn_t mtpc;
     char msg_id[MAX_MSG_ID_LEN];
+
+    memset(&mtpc, 0, sizeof(mtpc));
 
     // Exit if no top-level objects are to be deregistered
     if (objects == NULL)

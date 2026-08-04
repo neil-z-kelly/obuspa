@@ -332,6 +332,7 @@ int DEVICE_SECURITY_Init(void)
     }
 
     // Initialise client certificate structure
+
     memset(&client_cert, 0, sizeof(client_cert));
     client_cert.is_san_equal_endpoint_id = false;
     client_cert.is_loaded = false;
@@ -1518,8 +1519,10 @@ int GetClientCertFromMemory(X509 **p_cert, EVP_PKEY **p_pkey)
     const unsigned char *in;
     X509 *cert;
     EVP_PKEY *pkey;
-    agent_cert_info_t info = {0};
+    agent_cert_info_t info;
     get_agent_cert_cb_t get_agent_cert_cb;
+
+    memset(&info, 0, sizeof(info));
 
     // Setup default return values
     *p_cert = NULL;
@@ -2663,6 +2666,7 @@ int Asn1Time_To_ISO8601(ASN1_TIME *cert_time, char *buf, int buflen)
     }
 
     // Calculate year since 1900, correcting for years after the millenium
+
     memset(&tm, 0, sizeof(tm));
     #define TO_DIGIT(x) (x - '0')
     if (len == 13)
@@ -3270,8 +3274,11 @@ void LoadTrustStore_FromMutableCertDir(void)
     char *endptr;
     int instance;
     cert_t *ct;
-    dm_req_t req = {0};
-    dm_req_instances_t inst = {0};
+    dm_req_t req;
+    dm_req_instances_t inst;
+
+    memset(&req, 0, sizeof(req));
+    memset(&inst, 0, sizeof(inst));
 
     // Exit if no mutable cert directory has been specified - no certs to load
     if ((dir_path==NULL) || (dir_path[0] == '\0'))

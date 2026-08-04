@@ -1409,6 +1409,7 @@ int ProcessSubscriptionAdded(int instance)
     int err;
 
     // Initialise the structure representing this subscription
+
     memset(&sub, 0, sizeof(sub));
     sub.instance = instance;
     STR_VECTOR_Init(&sub.path_expressions);
@@ -2343,7 +2344,7 @@ int Validate_SubsID(dm_req_t *req, char *value)
     //         Hence this code block will never be run
     if (controller_path[0] == '\0')
     {
-        USP_LOG_Warning("WARNING: Setting Subscription ID for %s, where recipient has been deleted. Hence cannot check uniqueness", req->path);
+        USP_LOG_Warning("%s: Setting Subscription ID for %s, where recipient has been deleted. Hence cannot check uniqueness", __FUNCTION__, req->path);
         return USP_ERR_OK;
     }
 
@@ -3474,8 +3475,10 @@ void SendNotifyWithFds(Usp__Msg *req, subs_t *sub, char *path, unsigned int fd_k
     time_t retry_expiry_time;
     char *msg_id;
     char *dest_endpoint;
-    mtp_conn_t mtp_conn = {0};  // Ensures mtp_conn.is_reply_to_specified=false
+    mtp_conn_t mtp_conn;  // Ensures mtp_conn.is_reply_to_specified=false
     usp_send_item_t usp_send_item;
+
+    memset(&mtp_conn, 0, sizeof(mtp_conn));
 
     // Exit if unable to determine the endpoint of the controller
     // This could occur if the controller had been deleted

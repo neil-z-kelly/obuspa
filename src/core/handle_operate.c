@@ -178,7 +178,7 @@ void MSG_HANDLER_HandleOperate(Usp__Msg *usp, char *controller_endpoint, mtp_con
         if (descriptors_found)
         {
             err = USP_ERR_COMMAND_FAILURE;
-            USP_ERR_SetMessage("Command failure");
+            USP_ERR_SetMessage("%s: Command failure", __FUNCTION__);
         }
         else
         {

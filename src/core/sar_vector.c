@@ -220,11 +220,16 @@ sar_payload_t *SAR_VECTOR_Get(sar_vector_t *sarv, unsigned index)
 **************************************************************************/
 uint8_t* SAR_VECTOR_Serialize(sar_vector_t *sarv, int *len)
 {
-    uint8_t *data = NULL;
-    *len = 0;
+    uint8_t *data;
     unsigned u;
 
-    if (sarv->sum_length <= 0) return NULL;
+    *len = 0;
+
+    // Exit if the SAR vector is empty
+    if (sarv->sum_length <= 0)
+    {
+        return NULL;
+    }
 
     // Concatenates all payloads in the destination buffer
     data = USP_MALLOC(sarv->sum_length);

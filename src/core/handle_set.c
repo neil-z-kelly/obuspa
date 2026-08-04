@@ -384,7 +384,7 @@ Usp__Msg *CreateErrRespFromFailedSetParams(char *msg_id, group_set_vector_t *gsv
     resp = ERROR_RESP_CreateSingle(msg_id, outer_err_code, NULL);
 
     // Populate the error response with param errors for all failing required parameters
-    for (i=first_failure; i <= last_param_index; i++)
+    for (i=first_failure; i < last_param_index+1; i++)
     {
         gse = &gsv->vector[i];
         if ((gse->err_code != USP_ERR_OK) && (gse->is_required))

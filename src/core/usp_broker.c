@@ -2118,14 +2118,14 @@ int USP_BROKER_ExecuteCli_Service(str_vector_t *args)
     us = FindUspServiceByEndpoint(endpoint_id);
     if (us == NULL)
     {
-        USP_LOG_Error("Unknown USP Service EndpointID (%s)", endpoint_id);
+        USP_LOG_Error("%s: Unknown USP Service EndpointID (%s)", __FUNCTION__, endpoint_id);
         return USP_ERR_INTERNAL_ERROR;
     }
 
     // Exit if there is no connection to the USP Service anymore (this could occur if the socket disconnected in the meantime)
     if (us->controller_mtp.protocol == kMtpProtocol_None)
     {
-        USP_LOG_Error("USP Service is not connected (endpoint_id=%s)", endpoint_id);
+        USP_LOG_Error("%s: USP Service is not connected (endpoint_id=%s)", __FUNCTION__, endpoint_id);
         return USP_ERR_INTERNAL_ERROR;
     }
 
@@ -2134,7 +2134,7 @@ int USP_BROKER_ExecuteCli_Service(str_vector_t *args)
     if (cmd == INVALID)
     {
         char buf[256];
-        USP_LOG_Error("Unknown command. Valid commands: %s", TEXT_UTILS_EnumListToString(cli_service_cmds, NUM_ELEM(cli_service_cmds), buf, sizeof(buf)) );
+        USP_LOG_Error("%s: Unknown command. Valid commands: %s", __FUNCTION__, TEXT_UTILS_EnumListToString(cli_service_cmds, NUM_ELEM(cli_service_cmds), buf, sizeof(buf)) );
         return USP_ERR_INTERNAL_ERROR;
     }
 
@@ -5452,7 +5452,7 @@ int ProcessOperateResponse(Usp__Msg *resp, char *path, bool is_sync, kv_vector_t
             if (fd_res_exceeded)
             {
                 err = USP_ERR_RESOURCES_EXCEEDED;
-                USP_ERR_SetMessage("Resourced exceeded");
+                USP_ERR_SetMessage("%s: Resourced exceeded", __FUNCTION__);
                 break;
             }
 #endif

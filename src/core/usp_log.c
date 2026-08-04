@@ -170,7 +170,7 @@ void USP_LOG_Callstack(void)
     {
         symbols_found = dladdr(callstack[i], &info);
         indent = stack_size-3-i;
-        if (symbols_found)
+        if (symbols_found != 0)
         {
             func_name = (info.dli_sname != NULL) ? info.dli_sname : "Unknown";
             USP_LOG_Info(" %*s%s()", indent, "", func_name);

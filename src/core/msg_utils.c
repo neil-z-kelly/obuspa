@@ -605,8 +605,8 @@ Usp__Msg *MSG_UTILS_Create_GetSupportedDMReq(char *msg_id, str_vector_t *sv)
 int MSG_UTILS_ProcessUspService_GetResponse(Usp__Msg *resp, kv_vector_t *kvv)
 {
     int i;
-    int objIndex;
-    int paramIndex;
+    int obj_index;
+    int param_index;
     int err = USP_ERR_OK;
     Usp__GetResp *get;
     Usp__GetResp__RequestedPathResult *rpr;
@@ -639,20 +639,20 @@ int MSG_UTILS_ProcessUspService_GetResponse(Usp__Msg *resp, kv_vector_t *kvv)
         // Exit if we received an error for this path
         if (rpr->err_code != USP_ERR_OK)
         {
-            USP_ERR_SetMessage("Failed to get '%s' (err_msg=%s)", rpr->requested_path, rpr->err_msg);
+            USP_ERR_SetMessage("%s: Failed to get '%s' (err_msg=%s)", __FUNCTION__, rpr->requested_path, rpr->err_msg);
             KV_VECTOR_Destroy(kvv);
             err = rpr->err_code;
             goto exit;
         }
 
         // Iterate over all data model objects resolved for this path
-        for (objIndex = 0 ; objIndex < rpr->n_resolved_path_results ; objIndex++)
+        for (obj_index = 0 ; obj_index < rpr->n_resolved_path_results ; obj_index++)
         {
              // Iterate over all data model parameters resolved for this object
-            res  = rpr->resolved_path_results[objIndex];
-            for (paramIndex = 0 ; paramIndex < res->n_result_params ; paramIndex++)
+            res  = rpr->resolved_path_results[obj_index];
+            for (param_index = 0 ; param_index < res->n_result_params ; param_index++)
             {
-                rpe = res->result_params[paramIndex];
+                rpe = res->result_params[param_index];
                 USP_ASSERT((rpe != NULL) && (rpe->value != NULL));
 
                 // Add the full path and parameter value in the returned key-value vector
@@ -883,7 +883,7 @@ int MSG_UTILS_ProcessUspService_DeleteResponse(Usp__Msg *resp, char *path)
            case USP__DELETE_RESP__DELETED_OBJECT_RESULT__OPERATION_STATUS__OPER_STATUS_OPER_FAILURE:
                // NOTE: The USP Service should have sent an Error response instead of an OperFailure, because we sent the Delete request with allow_partial=false
                oper_failure = oper_status->oper_failure;
-               USP_ERR_SetMessage("Failed to delete %s (err_msg=%s)", deleted_obj_result->requested_path, oper_failure->err_msg);
+               USP_ERR_SetMessage("%s: Failed to delete %s (err_msg=%s)", __FUNCTION__, deleted_obj_result->requested_path, oper_failure->err_msg);
                err = oper_failure->err_code;
                goto exit;
                break;
