@@ -2056,6 +2056,7 @@ void SendUdsFrames(uds_connection_t *uc)
     unsigned int fd_key = 0;
     int fd_count = 0;
     int *fd_buffer = NULL;
+    int ref_count;
 
     if (uc->socket == INVALID)
     {
@@ -2085,7 +2086,8 @@ void SendUdsFrames(uds_connection_t *uc)
     {
         // If no references left for this buffer (no notifications or subscriptions holding reference)
         // it is need to be removed and closed
-        if (FD_VECTOR_DecRef(fd_key) <= 0)
+        ref_count = FD_VECTOR_DecRef(fd_key);
+        if (ref_count <= 0)
         {
             fd_buffer = FD_VECTOR_Get(fd_key, &fd_count);
             FD_VECTOR_Close(fd_buffer, fd_count);
@@ -2587,9 +2589,12 @@ void RemoveExpiredUdsMessages(uds_connection_t *uc)
 void RemoveUdsQueueItem(uds_connection_t *uc, uds_send_item_t *queued_msg)
 {
 #ifdef FD_PASSING_EXPERIMENTAL
+    int ref_count;
+
     if (queued_msg->item.fd_key > 0)
     {
-        if (FD_VECTOR_DecRef(queued_msg->item.fd_key) <= 0)
+        ref_count = FD_VECTOR_DecRef(queued_msg->item.fd_key);
+        if (ref_count <= 0)
         {
             int fd_count = 0;
             int* fd_buffer = FD_VECTOR_Get(queued_msg->item.fd_key, &fd_count);

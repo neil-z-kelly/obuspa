@@ -3364,7 +3364,7 @@ int DM_PRIV_CalcHashFromPath(char *path, dm_instances_t *inst, dm_hash_t *p_hash
                 return USP_ERR_INTERNAL_ERROR;
             }
 
-            p = p_sexpr_end+1;
+            p = &p_sexpr_end[1];
             c = *p;
             continue;
         }

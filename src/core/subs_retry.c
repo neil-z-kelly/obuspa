@@ -551,9 +551,12 @@ void UpdateFirstRetryTime(void)
 void DestroySubsRetryEntry(subs_retry_t *sr)
 {
 #ifdef FD_PASSING_EXPERIMENTAL
+    int ref_count;
+
     if (sr->fd_key != 0)
     {
-        if (FD_VECTOR_DecRef(sr->fd_key) <= 0)
+        ref_count = FD_VECTOR_DecRef(sr->fd_key);
+        if (ref_count <= 0)
         {
             int fd_count = 0;
             int *fd_buffer = FD_VECTOR_Get(sr->fd_key, &fd_count);

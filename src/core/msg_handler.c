@@ -1557,13 +1557,13 @@ int QueueUspNoSessionRecord(usp_send_item_t *usi, char *endpoint_id, char *usp_m
 {
     int err = USP_ERR_OK;
     mtp_send_item_t mtp_send_item;
-    UspRecord__NoSessionContextRecord ctxNoSession;
+    UspRecord__NoSessionContextRecord no_session_ctx;
     UspRecord__Record rec;
 
-    usp_record__no_session_context_record__init(&ctxNoSession);
-    ctxNoSession.payload.data = usi->msg_packed;
-    ctxNoSession.payload.len = usi->msg_packed_size;
-    USP_ASSERT(ctxNoSession.payload.len > 0);  // A NoSessionContext MUST have content
+    usp_record__no_session_context_record__init(&no_session_ctx);
+    no_session_ctx.payload.data = usi->msg_packed;
+    no_session_ctx.payload.len = usi->msg_packed_size;
+    USP_ASSERT(no_session_ctx.payload.len > 0);  // A NoSessionContext MUST have content
 
     // Fill in the USP Record structure
     // NOTE: This is all statically allocated (or owned elsewhere), so no need to free
@@ -1573,7 +1573,7 @@ int QueueUspNoSessionRecord(usp_send_item_t *usi, char *endpoint_id, char *usp_m
     rec.from_id = DEVICE_LOCAL_AGENT_GetEndpointID();
     rec.payload_security = USP_RECORD__RECORD__PAYLOAD_SECURITY__PLAINTEXT;
     rec.record_type_case = USP_RECORD__RECORD__RECORD_TYPE_NO_SESSION_CONTEXT;
-    rec.no_session_context = &ctxNoSession;
+    rec.no_session_context = &no_session_ctx;
 
     // Serialize the protobuf record structure into a buffer
     {

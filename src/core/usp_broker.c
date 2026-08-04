@@ -2070,7 +2070,7 @@ bool USP_BROKER_CheckPassThruPermissionsInSearchExpressions(char *path, combined
 
         EXPR_VECTOR_Destroy(&ev);
 
-        p = next_search_expr_end+1;
+        p = &next_search_expr_end[1];
     }
 
     return true;
@@ -4745,7 +4745,7 @@ int ProcessGetResponse(Usp__Msg *resp, kv_vector_t *kvv)
             }
             else
             {
-                USP_ERR_ReplaceEmptyMessage("Failed to get %s", rpr->requested_path);
+                USP_ERR_ReplaceEmptyMessage("%s: Failed to get %s", __FUNCTION__, rpr->requested_path);
             }
             continue;
         }

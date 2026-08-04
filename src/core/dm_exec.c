@@ -441,7 +441,8 @@ int DM_EXEC_Init(void)
     // Exit if unable to create signal handler
     sa.sa_handler = SigTermHandler;
     sigemptyset(&sa.sa_mask);
-    if (sigaction(SIGTERM, &sa, NULL) == -1)
+    err = sigaction(SIGTERM, &sa, NULL);
+    if (err == -1)
     {
         return USP_ERR_INTERNAL_ERROR;
     }

@@ -115,7 +115,7 @@ int E2E_CONTEXT_QueueUspSessionRecord(usp_send_item_t *usi, char *endpoint_id, c
     // - USP Record integrity (e.g. MAC, signature)
     int err = USP_ERR_OK;
     mtp_send_item_t mtp_send_item;
-    UspRecord__SessionContextRecord ctxSession;
+    UspRecord__SessionContextRecord session_ctx;
     UspRecord__Record rec;
     e2e_session_t *e2esession = usi->curr_e2e_session;
     unsigned max_payload_size = UINT_MAX;
@@ -148,11 +148,11 @@ int E2E_CONTEXT_QueueUspSessionRecord(usp_send_item_t *usi, char *endpoint_id, c
         e2esession->status = kE2EStatus_Negotiating;
     }
 
-    usp_record__session_context_record__init(&ctxSession);
-    ctxSession.session_id = e2esession->current_session_id;
-    ctxSession.sequence_id = (e2esession->last_sent_sequence_id + 1);  // The seq_id is set again later during the while loop
-    ctxSession.expected_id = (e2esession->last_recv_sequence_id + 1);
-    ctxSession.retransmit_id = 0;
+    usp_record__session_context_record__init(&session_ctx);
+    session_ctx.session_id = e2esession->current_session_id;
+    session_ctx.sequence_id = (e2esession->last_sent_sequence_id + 1);  // The seq_id is set again later during the while loop
+    session_ctx.expected_id = (e2esession->last_recv_sequence_id + 1);
+    session_ctx.retransmit_id = 0;
 
     // Fill in the USP Record structure with common values for all USP Records during the E2ESession
     usp_record__record__init(&rec);
@@ -161,7 +161,7 @@ int E2E_CONTEXT_QueueUspSessionRecord(usp_send_item_t *usi, char *endpoint_id, c
     rec.from_id = DEVICE_LOCAL_AGENT_GetEndpointID();
     rec.record_type_case = USP_RECORD__RECORD__RECORD_TYPE_SESSION_CONTEXT;
     rec.payload_security = USP_RECORD__RECORD__PAYLOAD_SECURITY__PLAINTEXT;
-    rec.session_context = &ctxSession;
+    rec.session_context = &session_ctx;
 
     // Calculate the maximal allowed payload size according to USP Record fields
     if (segmentation_enabled)
@@ -183,11 +183,11 @@ int E2E_CONTEXT_QueueUspSessionRecord(usp_send_item_t *usi, char *endpoint_id, c
         const int remaining_size = usi->msg_packed_size - bytes_queued;
 
         segment.len = MIN(max_payload_size, remaining_size);
-        segment.data = usi->msg_packed + bytes_queued;
+        segment.data = &usi->msg_packed[bytes_queued];
 
         // USP Record contains only one plaintext USP Message segment.
-        ctxSession.n_payload = 1;
-        ctxSession.payload = &segment;
+        session_ctx.n_payload = 1;
+        session_ctx.payload = &segment;
 
         // This is the first USP Record in SAR
         if (bytes_queued == 0)
@@ -195,34 +195,35 @@ int E2E_CONTEXT_QueueUspSessionRecord(usp_send_item_t *usi, char *endpoint_id, c
             // ... and this is also the last segment, so there's no segmentation.
             if (remaining_size <= segment.len)
             {
-                ctxSession.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__NONE;
+                session_ctx.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__NONE;
                 content_type = kMtpContentType_E2E_FullMessage;
             }
             else
             {
-                ctxSession.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__BEGIN;
+                session_ctx.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__BEGIN;
                 content_type = kMtpContentType_E2E_Begin;
             }
         }
         // No more segmentation required; this is the last segment
         else if (remaining_size <= segment.len)
         {
-            ctxSession.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__COMPLETE;
+            session_ctx.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__COMPLETE;
             content_type = kMtpContentType_E2E_Complete;
         }
         else
         {
-            ctxSession.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__INPROCESS;
+            session_ctx.payload_sar_state = USP_RECORD__SESSION_CONTEXT_RECORD__PAYLOAD_SARSTATE__INPROCESS;
             content_type = kMtpContentType_E2E_InProcess;
         }
 
         // Assign the sequence_id for this USP Record.
         // and update the last_sent_sequence_id.
-        ctxSession.sequence_id = ++(e2esession->last_sent_sequence_id);
+        e2esession->last_sent_sequence_id++;
+        session_ctx.sequence_id = e2esession->last_sent_sequence_id;
 
         // In case of PLAINTEXT, the payloadrec_sar_state is always
         // equal to payload_sar_state.
-        ctxSession.payloadrec_sar_state = ctxSession.payload_sar_state;
+        session_ctx.payloadrec_sar_state = session_ctx.payload_sar_state;
 
         // Serialize the protobuf record structure into a buffer
         {
@@ -647,6 +648,7 @@ int HandleSessionContextRecord(UspRecord__Record *rec, int role_instance, mtp_co
     const ProtobufCBinaryData recv_payload = rec->session_context->payload[0];
     e2e_session_t *curr_e2e_session = NULL;
     sar_vector_t *sar_vector = NULL;
+    bool is_appended;
 
     curr_e2e_session = DEVICE_CONTROLLER_FindE2ESessionByInstance(MSG_HANDLER_GetMsgControllerInstance());
     sar_vector = &(curr_e2e_session->received_payloads);
@@ -680,11 +682,12 @@ int HandleSessionContextRecord(UspRecord__Record *rec, int role_instance, mtp_co
     }
 
     // Append the payload in the SAR vector.
-    if (SAR_VECTOR_Append(sar_vector,
-                          recv_sess_id,
-                          recv_seq_id,
-                          recv_payload.data,
-                          recv_payload.len) == false)
+    is_appended = SAR_VECTOR_Append(sar_vector,
+                                    recv_sess_id,
+                                    recv_seq_id,
+                                    recv_payload.data,
+                                    recv_payload.len);
+    if (is_appended == false)
     {
         // If false is returned, the segment is not valid according to the SAR vector.
         // So terminate/restart the E2E session in that case.
