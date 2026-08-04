@@ -95,7 +95,7 @@ bool nu_ipaddr_is_zero(const nu_ipaddr_t *addrp);
 int nu_ipaddr_get_interface_addr_from_dest_addr(nu_ipaddr_t *dest, nu_ipaddr_t *if_addr);
 int nu_ipaddr_get_interface_addr_from_sock_fd(int sock_fd, char *buf, int bufsiz);
 int nu_ipaddr_get_interface_name_from_src_addr(char *src_addr, char *name, int name_len);
-int nu_ipaddr_has_interface_addr_changed(char *dev, char *expected_addr, bool *has_addr);
+bool nu_ipaddr_has_interface_addr_changed(char *dev, char *expected_addr, bool *has_addr);
 int nu_ipaddr_get_ip_supported_families(bool *ipv4_supported, bool *ipv6_supported);
 bool nu_ipaddr_is_valid_interface(const char *dev);
 char *tw_ulib_diags_family_to_protocol_version(int address_family);
