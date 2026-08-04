@@ -861,7 +861,7 @@ bool MQTT_AreAllResponsesSent(void)
             // Check if the queue is empty
             responses_sent = (client->usp_record_send_queue.head == NULL);
         }
-        if (!responses_sent)
+        if (responses_sent == false)
         {
             all_responses_sent = false;
         }

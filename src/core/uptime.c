@@ -58,8 +58,7 @@
 ** \return  Number of milli-seconds
 **
 **************************************************************************/
-uint32_t
-tu_uptime_msecs(void)
+uint32_t tu_uptime_msecs(void)
 {
     time_t t;
     struct timespec ts;
@@ -80,8 +79,7 @@ tu_uptime_msecs(void)
 ** \return  Number of seconds
 **
 **************************************************************************/
-uint32_t
-tu_uptime_secs(void)
+uint32_t tu_uptime_secs(void)
 {
     time_t t;
     struct timespec ts;

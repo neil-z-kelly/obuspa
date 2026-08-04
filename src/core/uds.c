@@ -2405,7 +2405,7 @@ void PopUdsSendItem(uds_connection_t *uc)
     success = true;
 
 exit:
-    if (!success)
+    if (success == false)
     {
         if (bmsg != NULL)
         {

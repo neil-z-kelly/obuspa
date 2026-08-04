@@ -3168,7 +3168,7 @@ int ControllerTrustRequestChallenge(dm_req_t *req, char *command_key, kv_vector_
         goto exit;
     }
 
-    if (!enabled)
+    if (enabled == false)
     {
         USP_ERR_SetMessage("%s: Invalid value - challenge disabled", __FUNCTION__);
         err = USP_ERR_INVALID_VALUE;
@@ -3212,7 +3212,8 @@ int ControllerTrustRequestChallenge(dm_req_t *req, char *command_key, kv_vector_
     USP_ASSERT(cc != NULL);
 
     // store the new data if not already set
-    if (cc->controller_endpoint_id == NULL) {
+    if (cc->controller_endpoint_id == NULL)
+    {
         GenerateChallengeId(challenge_id, sizeof(challenge_id));
         cc->controller_endpoint_id = USP_STRDUP(ci.endpoint_id);
         cc->challenge_id = USP_STRDUP(challenge_id);
