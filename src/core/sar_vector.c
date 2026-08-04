@@ -224,7 +224,10 @@ uint8_t* SAR_VECTOR_Serialize(sar_vector_t *sarv, int *len)
     *len = 0;
     unsigned u;
 
-    if (sarv->sum_length <= 0) return NULL;
+    if (sarv->sum_length <= 0)
+    {
+        return NULL;
+    }
 
     // Concatenates all payloads in the destination buffer
     data = USP_MALLOC(sarv->sum_length);

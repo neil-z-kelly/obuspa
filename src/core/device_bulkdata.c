@@ -1665,7 +1665,8 @@ int bulkdata_platform_get_uri_query_name_map(int profile_id, kv_vector_t *name_m
         }
 
         // Skip this parameter, if it is still blank (when the ACS creates a row, the default is for this parameter to be blank)
-        if (ref[0] == '\0') {
+        if (ref[0] == '\0')
+        {
             continue;
         }
 
@@ -1816,11 +1817,13 @@ char *bulkdata_platform_calc_uri_query_string(kv_vector_t *escaped_map)
 
         // Append '&' or '?', depending on whether this is the first query parameter which we are serializing
         q = &query_string[cur_len];
-        if (first_query_param) {
+        if (first_query_param)
+        {
             *q++ = '?';                 // First query param, starts with '?'
             first_query_param = false;
         }
-        else {
+        else
+        {
             *q++ = '&';                 // Subsequent query params, start with '&'
         }
 

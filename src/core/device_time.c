@@ -506,7 +506,7 @@ char *tz_skip_number(char *p, int min_digits, int max_digits, int min_value, int
     while (digit_count < max_digits)
     {
         // Exit loop if we've encountered a non digit
-        if (!is_numeric(*p))
+        if (is_numeric(*p) == false)
         {
             break;
         }

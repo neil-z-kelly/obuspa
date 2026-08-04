@@ -153,7 +153,7 @@ bool OS_UTILS_IsDataModelThread(const char *caller, bool print_warning)
 
     // Exit if this function is not being called from the data model thread
     this_thread = pthread_self();
-    if ( ! pthread_equal(this_thread, usp_core_thread))
+    if (pthread_equal(this_thread, usp_core_thread) == 0)
     {
         if (print_warning)
         {

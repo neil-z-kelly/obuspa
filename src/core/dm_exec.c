@@ -910,7 +910,7 @@ int USP_PROCESS_DoWorkSync(do_work_cb_t do_work_cb, void *arg1, void *arg2)
 
     // Wait for condition variable to signal done
     pthread_mutex_lock(&ctx.mutex);
-    while (!ctx.done)
+    while (ctx.done == false)
     {
         err = pthread_cond_wait(&ctx.cond, &ctx.mutex);
         if (err != 0)

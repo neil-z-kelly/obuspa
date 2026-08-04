@@ -1479,7 +1479,7 @@ int HandleWssEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
     wc->rx_buf_len += chunk_len;
 
     // Exit if not all chunks of the USP Record have been received yet
-    if (!lws_is_final_fragment(handle))
+    if (lws_is_final_fragment(handle) == 0)
     {
         return 0;
     }

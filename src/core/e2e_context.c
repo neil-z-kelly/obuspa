@@ -914,7 +914,7 @@ bool IsValidE2eSarState(sar_vector_t *sar_vector, int sar_state)
         default:
         {
             // The vector must have content
-            if (!has_content)
+            if (has_content == false)
             {
                 return false;
             }

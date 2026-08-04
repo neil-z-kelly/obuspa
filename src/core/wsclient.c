@@ -1950,7 +1950,7 @@ int HandleWscEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
     wc->ping_count = 0;
 
     // Exit, sending a close frame if we received a text frame, instead of a binary frame
-    if (!lws_frame_is_binary(handle))
+    if (lws_frame_is_binary(handle) == 0)
     {
         return CloseWsclientConnection(wc, kWebSockCloseReason_BadUspRecord, LWS_CLOSE_STATUS_INVALID_PAYLOAD,
                                       "%s: Text frame received from %s. Expecting binary frame.", __FUNCTION__, wc->cont_endpoint_id);
@@ -1979,7 +1979,7 @@ int HandleWscEvent_Receive(struct lws *handle, unsigned char *chunk, int chunk_l
     wc->rx_buf_len += chunk_len;
 
     // Exit if not all chunks of the USP Record have been received yet
-    if (!lws_is_final_fragment(handle))
+    if (lws_is_final_fragment(handle) == 0)
     {
         return 0;
     }

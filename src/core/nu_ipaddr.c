@@ -91,18 +91,21 @@ int tw_ulib_get_dev_ipaddr(const char *dev, char *addr, size_t asiz, bool prefer
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_get_family(const nu_ipaddr_t *addr, sa_family_t *familyp)
+int nu_ipaddr_get_family(const nu_ipaddr_t *addr, sa_family_t *familyp)
 {
 #if IPV6_NUIPADDR
-    if (IN6_IS_ADDR_V4MAPPED(addr)) {
+    // Exit if the address is an IPv4 address stored as an IPv4 mapped IPv6 address
+    if (IN6_IS_ADDR_V4MAPPED(addr))
+    {
         *familyp = AF_INET;
-    } else {
-        *familyp = AF_INET6;
+        return USP_ERR_OK;
     }
-#else /* IPV6_NUIPADDR */
+
+    *familyp = AF_INET6;
+#else // IPV6_NUIPADDR
     *familyp = AF_INET;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
+
     return USP_ERR_OK;
 }
 
@@ -120,21 +123,22 @@ nu_ipaddr_get_family(const nu_ipaddr_t *addr, sa_family_t *familyp)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_to_inaddr(const nu_ipaddr_t *addr, struct in_addr *p)
+int nu_ipaddr_to_inaddr(const nu_ipaddr_t *addr, struct in_addr *p)
 {
 #if IPV6_NUIPADDR
-    if (IN6_IS_ADDR_V4MAPPED(addr) || IN6_IS_ADDR_V4COMPAT(addr)) {
+    // Exit if the address holds an IPv4 address, extracting it from the IPv4 mapped (or compatible) IPv6 address
+    if ((IN6_IS_ADDR_V4MAPPED(addr)) || (IN6_IS_ADDR_V4COMPAT(addr)))
+    {
         p->s_addr = addr->s6_addr32[3];
         return USP_ERR_OK;
     }
 
     USP_ERR_SetMessage("%s: Failed trying to convert an IPv6 address to an IPv4 address", __FUNCTION__);
     return USP_ERR_INTERNAL_ERROR;
-#else /* IPV6_NUIPADDR */
+#else // IPV6_NUIPADDR
     p->s_addr = addr->s_addr;
     return USP_ERR_OK;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
 }
 
 
@@ -151,18 +155,18 @@ nu_ipaddr_to_inaddr(const nu_ipaddr_t *addr, struct in_addr *p)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_to_in6addr(const nu_ipaddr_t *addr, struct in6_addr *p)
+int nu_ipaddr_to_in6addr(const nu_ipaddr_t *addr, struct in6_addr *p)
 {
 #if IPV6_NUIPADDR
     // Exit if the specified nu_ipaddr_t contains an IPv4 address instead of an IPv6 Address
-    if (IN6_IS_ADDR_V4MAPPED(addr) || IN6_IS_ADDR_V4COMPAT(addr)) {
+    if ((IN6_IS_ADDR_V4MAPPED(addr)) || (IN6_IS_ADDR_V4COMPAT(addr)))
+    {
         USP_ERR_SetMessage("%s: Failed trying to convert an IPv4 address to an IPv6 address", __FUNCTION__);
         return USP_ERR_INTERNAL_ERROR;
     }
 
     memcpy(p, addr, sizeof(*p));
-#else /* IPV6_NUIPADDR */
+#else // IPV6_NUIPADDR
     p->s6_addr32[0] = 0;
     p->s6_addr32[1] = 0;
     p->s6_addr[8] = 0;
@@ -170,7 +174,8 @@ nu_ipaddr_to_in6addr(const nu_ipaddr_t *addr, struct in6_addr *p)
     p->s6_addr[10] = 0xff;
     p->s6_addr[11] = 0xff;
     p->s6_addr32[3] = addr->s_addr;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
+
     return USP_ERR_OK;
 }
 
@@ -189,43 +194,55 @@ nu_ipaddr_to_in6addr(const nu_ipaddr_t *addr, struct in6_addr *p)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_to_sockaddr(const nu_ipaddr_t *addr, int port, struct sockaddr_storage *sa, socklen_t *len_p)
+int nu_ipaddr_to_sockaddr(const nu_ipaddr_t *addr, int port, struct sockaddr_storage *sa, socklen_t *len_p)
 {
     sa_family_t family;
+    struct sockaddr_in6 *sin6;
+    struct sockaddr_in *sin;
     int err;
 
+    // Exit if unable to determine whether the address is IPv4 or IPv6
     err = nu_ipaddr_get_family(addr, &family);
-    if (err != USP_ERR_OK) {
+    if (err != USP_ERR_OK)
+    {
         return err;
     }
 
     (void) memset(sa, 0, sizeof(*sa));
 
-    if (family == AF_INET6) {
-        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) sa;
-        sin6->sin6_family = family;
-        sin6->sin6_port = htons(port);
-        err = nu_ipaddr_to_in6addr(addr, &sin6->sin6_addr);
-        if (err != USP_ERR_OK) {
-            return err;
-        }
-
-        if (len_p != NULL) {
-            *len_p = sizeof(struct sockaddr_in6);
-        }
-    } else {
-        struct sockaddr_in *sin = (struct sockaddr_in *) sa;
+    // Handle the IPv4 case
+    if (family != AF_INET6)
+    {
+        sin = (struct sockaddr_in *) sa;
         sin->sin_family = family;
         sin->sin_port = htons(port);
         err = nu_ipaddr_to_inaddr(addr, &sin->sin_addr);
-        if (err != USP_ERR_OK) {
+        if (err != USP_ERR_OK)
+        {
             return err;
         }
 
-        if (len_p != NULL) {
+        if (len_p != NULL)
+        {
             *len_p = sizeof(struct sockaddr_in);
         }
+
+        return USP_ERR_OK;
+    }
+
+    // If the code gets here, then the address is IPv6
+    sin6 = (struct sockaddr_in6 *) sa;
+    sin6->sin6_family = family;
+    sin6->sin6_port = htons(port);
+    err = nu_ipaddr_to_in6addr(addr, &sin6->sin6_addr);
+    if (err != USP_ERR_OK)
+    {
+        return err;
+    }
+
+    if (len_p != NULL)
+    {
+        *len_p = sizeof(struct sockaddr_in6);
     }
 
     return USP_ERR_OK;
@@ -245,8 +262,7 @@ nu_ipaddr_to_sockaddr(const nu_ipaddr_t *addr, int port, struct sockaddr_storage
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_to_str(const nu_ipaddr_t *addr, char *buf, int buflen)
+int nu_ipaddr_to_str(const nu_ipaddr_t *addr, char *buf, int buflen)
 {
     const char *cp;
     sa_family_t family;
@@ -255,25 +271,31 @@ nu_ipaddr_to_str(const nu_ipaddr_t *addr, char *buf, int buflen)
 
 #if IPV6_NUIPADDR
     // Handle case of nu_ipaddr_t containing an IPv4 address here, pure IPv6 case is handled at the end of the function
-    if (IN6_IS_ADDR_V4MAPPED(addr)) {
+    if (IN6_IS_ADDR_V4MAPPED(addr))
+    {
         cp = inet_ntop(AF_INET, &addr->s6_addr32[3], buf, buflen);
-        if (cp == NULL) {
+        if (cp == NULL)
+        {
             USP_ERR_ERRNO("inet_ntop", errno);
             return USP_ERR_INTERNAL_ERROR;
         }
+
         return USP_ERR_OK;
     }
     family = AF_INET6;
-#else /* IPV6_NUIPADDR */
-    /* nu_ipaddr_t is only v4 */
+#else // IPV6_NUIPADDR
+    // nu_ipaddr_t only holds IPv4 addresses
     family = AF_INET;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
 
+    // Exit if unable to convert the address to a string
     cp = inet_ntop(family, addr, buf, buflen);
-    if (cp == NULL) {
+    if (cp == NULL)
+    {
         USP_ERR_ERRNO("inet_ntop", errno);
         return USP_ERR_INTERNAL_ERROR;
     }
+
     return USP_ERR_OK;
 }
 
@@ -317,8 +339,7 @@ char *nu_ipaddr_str(const nu_ipaddr_t *addr, char *buf, int buflen)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_from_str(const char *str, nu_ipaddr_t *addr)
+int nu_ipaddr_from_str(const char *str, nu_ipaddr_t *addr)
 {
     const char *p;
     const char *begin;
@@ -327,62 +348,88 @@ nu_ipaddr_from_str(const char *str, nu_ipaddr_t *addr)
     struct in_addr in;
     void *inptr;
     sa_family_t family;
-    int err, i;
+    int err;
+    int i;
 
-    /* skip leading space */
-    for (p = str; *p != '\0'; p++) {
-        if (!isspace(p[0])) {
+    // Skip any leading space
+    p = str;
+    while (*p != '\0')
+    {
+        if (isspace(p[0]) == 0)
+        {
             break;
         }
-    }
-    if (*p == '[') {
-        p++;    /* strip the IPv6 brackets */
-        for (i = 0; (buf[i] = *p); i++, p++) {
-            if (i >= sizeof(buf) - 1 || buf[i] == ']') {
-                buf[i] = '\0';
-                break;
-            }
-        }
-        begin = buf;
-    } else {
-    begin = p;
+        p++;
     }
 
-    /* determine family */
+    // Strip the enclosing brackets if this is a bracketed IPv6 address, copying the contents into buf
+    if (*p == '[')
+    {
+        p++;
+        i = 0;
+        while (i < sizeof(buf) - 1)
+        {
+            buf[i] = *p;
+            if ((buf[i] == '\0') || (buf[i] == ']'))
+            {
+                break;
+            }
+            i++;
+            p++;
+        }
+        buf[i] = '\0';
+        begin = buf;
+    }
+    else
+    {
+        begin = p;
+    }
+
+    // Determine the address family from the characters present in the string
     family = AF_INET;
     inptr = &in;
-    for (p = begin; *p != '\0'; p++) {
-        if (p[0] == '.' || isdigit(p[0])) {
-            /* valid ipv4 value */
+    p = begin;
+    while (*p != '\0')
+    {
+        // Skip characters that are valid in an IPv4 address
+        if ((p[0] == '.') || (isdigit(p[0])))
+        {
+            p++;
             continue;
         }
-        if (p[0] == ':' || isxdigit(p[0])) {
-            /* ipv6 only has hex */
+
+        // Exit the loop if a hex-only character is seen, as this denotes an IPv6 address
+        if ((p[0] == ':') || (isxdigit(p[0])))
+        {
             family = AF_INET6;
             inptr = &in6;
             break;
         }
 
-        /* invalid character. Stop */
+        // Exit the loop on an invalid character
         break;
     }
 
-    /* attempt to parse using what we've learned */
-    err = inet_pton(family, begin, inptr);      // returns 1 on success
-    if (err <= 0) {
+    // Exit if unable to parse the string as the determined address family (inet_pton() returns 1 on success)
+    err = inet_pton(family, begin, inptr);
+    if (err <= 0)
+    {
         return USP_ERR_INTERNAL_ERROR;
     }
 
-    switch (family) {
-    case AF_INET:
-        err = nu_ipaddr_from_inaddr(&in, addr);
-        break;
-    case AF_INET6:
-        err = nu_ipaddr_from_in6addr(&in6, addr);
-        break;
-    default:
-        TERMINATE_BAD_CASE(family);
-        break;
+    switch (family)
+    {
+        case AF_INET:
+            err = nu_ipaddr_from_inaddr(&in, addr);
+            break;
+
+        case AF_INET6:
+            err = nu_ipaddr_from_in6addr(&in6, addr);
+            break;
+
+        default:
+            TERMINATE_BAD_CASE(family);
+            break;
     }
 
     return err;
@@ -404,8 +451,7 @@ nu_ipaddr_from_str(const char *str, nu_ipaddr_t *addr)
 **          NOTE: This function may be called with unsupported address families. The caller must handle this.
 **
 **************************************************************************/
-int
-nu_ipaddr_from_sockaddr_storage(const struct sockaddr_storage *p, nu_ipaddr_t *addr, uint16_t *port)
+int nu_ipaddr_from_sockaddr_storage(const struct sockaddr_storage *p, nu_ipaddr_t *addr, uint16_t *port)
 {
     int err;
     struct sockaddr_in *sin4;
@@ -467,8 +513,7 @@ nu_ipaddr_from_sockaddr_storage(const struct sockaddr_storage *p, nu_ipaddr_t *a
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_from_inaddr(const struct in_addr *p, nu_ipaddr_t *addr)
+int nu_ipaddr_from_inaddr(const struct in_addr *p, nu_ipaddr_t *addr)
 {
 #if IPV6_NUIPADDR
     // Store IPv4 address internally as an IPv4 mapped IPv6 address
@@ -479,9 +524,9 @@ nu_ipaddr_from_inaddr(const struct in_addr *p, nu_ipaddr_t *addr)
     addr->s6_addr[10] = 0xff;
     addr->s6_addr[11] = 0xff;
     addr->s6_addr32[3] = p->s_addr;
-#else /* IPV6_NUIPADDR */
+#else // IPV6_NUIPADDR
     addr->s_addr = p->s_addr;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
     return USP_ERR_OK;
 }
 
@@ -498,13 +543,12 @@ nu_ipaddr_from_inaddr(const struct in_addr *p, nu_ipaddr_t *addr)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_from_in6addr(const struct in6_addr *p, nu_ipaddr_t *addr)
+int nu_ipaddr_from_in6addr(const struct in6_addr *p, nu_ipaddr_t *addr)
 {
 #if IPV6_NUIPADDR
     memcpy(addr, p, sizeof(*addr));
     return USP_ERR_OK;
-#else /* IPV6_NUIPADDR */
+#else // IPV6_NUIPADDR
     // Check that we have only been passed an IPv4 mapped or IPv4 compatible IPv6 address
     if ((p->s6_addr32[0] == 0) &&
         (p->s6_addr32[1] == 0) &&
@@ -519,7 +563,7 @@ nu_ipaddr_from_in6addr(const struct in6_addr *p, nu_ipaddr_t *addr)
 
     USP_ERR_SetMessage("%s: Unable to convert: Not an IPv4 mapped or IPv4 compatible IPv6 address", __FUNCTION__);
     return USP_ERR_INTERNAL_ERROR;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
 }
 
 
@@ -535,18 +579,16 @@ nu_ipaddr_from_in6addr(const struct in6_addr *p, nu_ipaddr_t *addr)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_equal(const nu_ipaddr_t *a1, const nu_ipaddr_t *a2,
-        bool *equalp)
+int nu_ipaddr_equal(const nu_ipaddr_t *a1, const nu_ipaddr_t *a2, bool *equalp)
 {
 #if IPV6_NUIPADDR
     *equalp = (a1->s6_addr32[0] == a2->s6_addr32[0] &&      // NOTE: This is comparing all 16 bytes of the IPv6 address
            a1->s6_addr32[1] == a2->s6_addr32[1] &&
            a1->s6_addr32[2] == a2->s6_addr32[2] &&
            a1->s6_addr32[3] == a2->s6_addr32[3]);
-#else /* IPV6_NUIPADDR */
+#else // IPV6_NUIPADDR
     *equalp = (a1->s_addr == a2->s_addr);
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
     return USP_ERR_OK;
 }
 
@@ -562,8 +604,7 @@ nu_ipaddr_equal(const nu_ipaddr_t *a1, const nu_ipaddr_t *a2,
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_copy(nu_ipaddr_t *dest, const nu_ipaddr_t *src)
+int nu_ipaddr_copy(nu_ipaddr_t *dest, const nu_ipaddr_t *src)
 {
     memcpy(dest, src, sizeof(nu_ipaddr_t));
     return USP_ERR_OK;
@@ -580,17 +621,16 @@ nu_ipaddr_copy(nu_ipaddr_t *dest, const nu_ipaddr_t *src)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-nu_ipaddr_set_zero(nu_ipaddr_t *addr)
+int nu_ipaddr_set_zero(nu_ipaddr_t *addr)
 {
 #if IPV6_NUIPADDR
     addr->s6_addr32[0] = 0;
     addr->s6_addr32[1] = 0;
     addr->s6_addr32[2] = 0;
     addr->s6_addr32[3] = 0;
-#else /* IPV6_NUIPADDR */
+#else // IPV6_NUIPADDR
     addr->s_addr = 0;
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
     return USP_ERR_OK;
 }
 
@@ -607,23 +647,25 @@ nu_ipaddr_set_zero(nu_ipaddr_t *addr)
 ** \return  true if the specified nu_ipaddr_t is the 'zero' IP address, false otherwise
 **
 **************************************************************************/
-bool
-nu_ipaddr_is_zero(const nu_ipaddr_t *addr)
+bool nu_ipaddr_is_zero(const nu_ipaddr_t *addr)
 {
     bool flag;
 
 #if IPV6_NUIPADDR
-    if (IN6_IS_ADDR_V4MAPPED(addr)) {
+    if (IN6_IS_ADDR_V4MAPPED(addr))
+    {
         flag = (addr->s6_addr32[3] == 0);
-    } else {
-        flag = (addr->s6_addr32[0] == 0 &&
-             addr->s6_addr32[1] == 0 &&
-             addr->s6_addr32[2] == 0 &&
-             addr->s6_addr32[3] == 0);
     }
-#else /* IPV6_NUIPADDR */
+    else
+    {
+        flag = ((addr->s6_addr32[0] == 0) &&
+                (addr->s6_addr32[1] == 0) &&
+                (addr->s6_addr32[2] == 0) &&
+                (addr->s6_addr32[3] == 0));
+    }
+#else // IPV6_NUIPADDR
     flag = (addr->s_addr == 0);
-#endif /* !IPV6_NUIPADDR */
+#endif // IPV6_NUIPADDR
     return flag;
 }
 
@@ -985,7 +1027,9 @@ int nu_ipaddr_get_ip_supported_families(bool *ipv4_supported, bool *ipv6_support
     // Iterate over all results in the linked list
     for (iterator=ifaddr_list;   iterator!=NULL;   iterator=iterator->ifa_next)
     {
-        if (iterator->ifa_addr != NULL) {        // ifa_addr may equal NULL for tunnels
+        // Skip this interface if it has no address. ifa_addr may equal NULL for tunnels
+        if (iterator->ifa_addr != NULL)
+        {
             family = iterator->ifa_addr->sa_family;
             switch(family)
             {
@@ -1117,8 +1161,7 @@ char *tw_ulib_diags_family_to_protocol_version(int address_family)
 ** \return  USP_ERR_OK if successful
 **
 **************************************************************************/
-int
-tw_ulib_diags_lookup_host(const char *host, int acs_family_pref, bool prefer_ipv6, nu_ipaddr_t *acs_ipaddr_to_bind_to, nu_ipaddr_t *dst)
+int tw_ulib_diags_lookup_host(const char *host, int acs_family_pref, bool prefer_ipv6, nu_ipaddr_t *acs_ipaddr_to_bind_to, nu_ipaddr_t *dst)
 {
     int err;
     struct addrinfo *addr_list;

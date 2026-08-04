@@ -128,32 +128,42 @@ char *iso8601_from_unix_time(time_t unix_time, char *buf, int len)
  *           terminating null character. if any error occurs,
  *           0 is returned and the content is interminate.
  */
-size_t
-iso8601_strftime(char *buf, size_t buflen, const struct tm *tm)
+size_t iso8601_strftime(char *buf, size_t buflen, const struct tm *tm)
 {
     size_t sz;
+    long absoff;
+    char sign;
 
-    if (!tm || !buf || (buflen == 0)) {
+    // Exit if any of the arguments are invalid
+    if ((tm == NULL) || (buf == NULL) || (buflen == 0))
+    {
         return 0;
     }
-    if (tm->tm_gmtoff == 0) {
-        sz = strftime(buf, buflen, "%FT%TZ", tm);
-    } else {
-        sz = strftime(buf, buflen, "%FT%T", tm);
-        if (sz < buflen) {
-            long absoff;
 
-            if (tm->tm_gmtoff < 0) {
-                absoff = -tm->tm_gmtoff;
-            } else {
-                absoff = tm->tm_gmtoff;
-            }
-            sz += USP_SNPRINTF(&buf[sz], buflen - sz,
-                     "%c%02ld:%02ld",
-                     (tm->tm_gmtoff < 0) ? '-' : '+',
-                     absoff / 3600, (absoff % 3600) / 60);
-        }
+    // Exit if the time is UTC, in which case it is formatted with a trailing 'Z' rather than a numeric timezone offset
+    if (tm->tm_gmtoff == 0)
+    {
+        sz = strftime(buf, buflen, "%FT%TZ", tm);
+        return sz;
     }
+
+    // If the code gets here, then a numeric timezone offset must be appended to the formatted time
+    sz = strftime(buf, buflen, "%FT%T", tm);
+    if (sz < buflen)
+    {
+        if (tm->tm_gmtoff < 0)
+        {
+            absoff = -tm->tm_gmtoff;
+            sign = '-';
+        }
+        else
+        {
+            absoff = tm->tm_gmtoff;
+            sign = '+';
+        }
+        sz += USP_SNPRINTF(&buf[sz], buflen - sz, "%c%02ld:%02ld", sign, absoff / 3600, (absoff % 3600) / 60);
+    }
+
     return sz;
 }
 
@@ -166,17 +176,19 @@ iso8601_strftime(char *buf, size_t buflen, const struct tm *tm)
  *
  * @return Length of resulting string in characters, or -1 if formatting failed.
  */
-size_t
-iso8601_us_strftime(char *buf, size_t bufsiz, const struct timeval *tv)
+size_t iso8601_us_strftime(char *buf, size_t bufsiz, const struct timeval *tv)
 {
-        if (!buf || !tv || bufsiz < 8) {
-            return -1;
-        }
+    size_t sz;
 
-        size_t sz;
-        sz = strftime(buf, bufsiz-8, "%FT%T.", gmtime(&tv->tv_sec));
-        sz += sprintf(buf+strlen(buf), "%06ldZ", (long int)tv->tv_usec);
-        return sz;
+    // Exit if any of the arguments are invalid
+    if ((buf == NULL) || (tv == NULL) || (bufsiz < 8))
+    {
+        return -1;
+    }
+
+    sz = strftime(buf, bufsiz - 8, "%FT%T.", gmtime(&tv->tv_sec));
+    sz += sprintf(&buf[strlen(buf)], "%06ldZ", (long int)tv->tv_usec);
+    return sz;
 }
 
 /*********************************************************************//**
@@ -190,8 +202,7 @@ iso8601_us_strftime(char *buf, size_t bufsiz, const struct timeval *tv)
 ** \return  Number of seconds since the UTC unix epoch, or INVALID_TIME if the conversion failed
 **
 **************************************************************************/
-time_t
-iso8601_to_unix_time(const char *date)
+time_t iso8601_to_unix_time(const char *date)
 {
     char *p;
     struct tm tm;
@@ -244,8 +255,7 @@ iso8601_to_unix_time(const char *date)
  *           terminating null character. if any error occurs,
  *           0 is returned and the content is interminate.
  */
-size_t
-uptime_strftime(char *buf, size_t buflen, unsigned uptime)
+size_t uptime_strftime(char *buf, size_t buflen, unsigned uptime)
 {
     int years;
     int months;
@@ -257,7 +267,9 @@ uptime_strftime(char *buf, size_t buflen, unsigned uptime)
 
     size_t sz;
 
-    if (!buf || (buflen == 0)) {
+    // Exit if any of the arguments are invalid
+    if ((buf == NULL) || (buflen == 0))
+    {
         return 0;
     }
 
