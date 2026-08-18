@@ -128,6 +128,8 @@ typedef struct
     int port;
     char *resource;                // Percent encoded resource name
     bool encryption;
+    bool is_peer_authenticated;    // Set if the USP Record was received over a DTLS session in which the peer was authenticated.
+                                   // Only used for received USP Records
     bool reset_session_hint;       // Set if an existing DTLS session with this host should be reset.
                                    // If we know that the USP request came in on a new DTLS session, then it is likely
                                    // that the USP response must be sent back on a new DTLS session also. Without this,
@@ -233,6 +235,7 @@ void DEVICE_CONTROLLER_Stop(void);
 int DEVICE_CONTROLLER_FindInstanceByEndpointId(char *endpoint_id);
 int DEVICE_CONTROLLER_QueueBinaryMessage(mtp_send_item_t *msi, char *endpoint_id, char *usp_msg_id, mtp_conn_t *mtp_conn, time_t expiry_time);
 bool DEVICE_CONTROLLER_IsMTPConfigured(char *endpoint_id, mtp_protocol_t protocol);
+bool DEVICE_CONTROLLER_IsEndpointBoundToMTP(char *endpoint_id, mtp_conn_t *mtpc);
 char *DEVICE_CONTROLLER_FindEndpointIdByInstance(int instance);
 char *DEVICE_CONTROLLER_FindEndpointByMTP(mtp_conn_t *mtpc);
 int DEVICE_CONTROLLER_CopyNotifyDestForEndpoint(char *endpoint_id, mtp_protocol_t protocol, Usp__Header__MsgType usp_msg_type, mtp_conn_t *dest);

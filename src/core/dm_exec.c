@@ -1600,6 +1600,7 @@ void DM_EXEC_CopyMTPConnection(mtp_conn_t *dst, mtp_conn_t *src)
             dst->coap.port = src->coap.port;
             dst->coap.resource = USP_STRDUP(src->coap.resource);
             dst->coap.encryption = src->coap.encryption;
+            dst->coap.is_peer_authenticated = src->coap.is_peer_authenticated;
             dst->coap.reset_session_hint = src->coap.reset_session_hint;
             break;
 #endif
@@ -2682,6 +2683,14 @@ Usp__Msg *IsMatchingMsgId(dm_exec_msg_t *msg, char *msg_id, char *responder, Usp
     // Exit if unable to unpack the USP message
     usp = usp__msg__unpack(pbuf_allocator, payload->len, payload->data);
     if (usp == NULL)
+    {
+        goto exit;
+    }
+
+    // Exit if the endpoint sending this record was not identified by the MTP, and its self asserted from_id claims to be
+    // a controller which is not associated with the connection that the record was received on (controller impersonation)
+    if ((rec->from_id == NULL) ||
+        ((pur->originator == UNKNOWN_ENDPOINT_ID) && (DEVICE_CONTROLLER_IsEndpointBoundToMTP(rec->from_id, &pur->mtp_conn) == false)))
     {
         goto exit;
     }

@@ -179,6 +179,14 @@ int MSG_HANDLER_HandleBinaryRecord(unsigned char *pbuf, int pbuf_len, char *orig
         return USP_ERR_RECORD_NOT_PARSED;
     }
 
+    // Exit if the USP Record does not identify the endpoint which sent it
+    if (rec->from_id == NULL)
+    {
+        USP_ERR_SetMessage("%s: Ignoring USP record as from_id is missing", __FUNCTION__);
+        err = USP_ERR_RECORD_FIELD_INVALID;
+        goto exit;
+    }
+
     // Exit if the originator of the message was known from the MTP, but is inconsistent with the USP Record from_id
     if ((originator != UNKNOWN_ENDPOINT_ID) && (strcmp(originator, rec->from_id) != 0))
     {
@@ -226,6 +234,16 @@ int MSG_HANDLER_HandleBinaryRecord(unsigned char *pbuf, int pbuf_len, char *orig
             break;
     }
 #endif
+
+    // Exit if the originator of the message was not known from the MTP, and the self asserted from_id claims to be a
+    // controller which is not associated with the connection that the USP Record was received on.
+    // Otherwise the sender could impersonate a configured controller, inheriting that controller's permissions
+    if ((originator == UNKNOWN_ENDPOINT_ID) && (DEVICE_CONTROLLER_IsEndpointBoundToMTP(rec->from_id, mtpc) == false))
+    {
+        USP_ERR_SetMessage("%s: Ignoring USP record from unauthenticated endpoint claiming to be controller eid='%s' on %s", __FUNCTION__, rec->from_id, DEVICE_MTP_EnumToString(mtpc->protocol));
+        err = USP_ERR_REQUEST_DENIED;
+        goto exit;
+    }
 
     // Exit if USP record failed validation
     err = ValidateUspRecord(rec, mtpc);
