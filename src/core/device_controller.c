@@ -1160,6 +1160,15 @@ bool DEVICE_CONTROLLER_IsEndpointBoundToMTP(char *endpoint_id, mtp_conn_t *mtpc)
             break;
 #endif
 
+#ifdef ENABLE_WEBSOCKETS
+        case kMtpProtocol_WebSockets:
+            // Records received by the agent's websocket client always identify the originator to the core.
+            // Records received by the agent's websocket server only do so if the peer declared its endpoint_id in the
+            // Sec-WebSocket-Extensions header, so an anonymous peer may not claim a configured controller's endpoint_id
+            return (mtpc->ws.serv_conn_id == INVALID);
+            break;
+#endif
+
         default:
             // All other MTPs provide the identity of the originator of the USP Record to the core,
             // and this is checked against the USP Record's from_id by MSG_HANDLER_HandleBinaryRecord()
